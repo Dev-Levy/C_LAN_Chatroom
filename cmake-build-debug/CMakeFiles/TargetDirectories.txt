@@ -1,0 +1,3 @@
+/home/Graci/LinuxSockets/cmake-build-debug/CMakeFiles/LinuxSockets.dir
+/home/Graci/LinuxSockets/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/Graci/LinuxSockets/cmake-build-debug/CMakeFiles/rebuild_cache.dir
