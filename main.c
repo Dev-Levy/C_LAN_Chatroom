@@ -8,10 +8,7 @@
 #include <string.h>
 #include <malloc.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <stdlib.h>
-#include <netinet/ip.h>
-#include <netinet/tcp.h>
 
 #define numberofconnsallowed 10
 
@@ -22,11 +19,6 @@ struct AcceptedSocket
     int error;
     bool acceptedSuccessfully;
 };
-/*struct conacceptargs {
-    int serverSocketFD;
-    int connectedSocketFD;
-    struct sockaddr_in *connectedSocketAddress;
-};*/
 
 struct recvargs {
     struct AcceptedSocket *acceptedSocket;
@@ -51,46 +43,6 @@ struct sockaddr_in* CreateIPv4Address(char* ip, int port) {
     return address;
 }
 
-
-
-/*int is_port_listening(char* ip) {
-    int flags, result, err;
-    fd_set fdset;
-    struct timeval tv;
-    int sock = createTCPIpv4Socket();
-
-    struct sockaddr_in *sock_address = CreateIPv4Address(ip,50000);
-
-    // Set non-blocking
-    flags = fcntl(sock, F_GETFL, 0);
-    fcntl(sock, F_SETFL, flags | O_NONBLOCK);
-
-    result = connect(sock, (struct sockaddr *)sock_address, sizeof(*sock_address));
-    if (result == 0) {
-        // Immediate success (unlikely, but valid)
-        close(sock);
-        return 1;
-    } else if (errno == EINPROGRESS) {
-        // Connection in progress, check if it finishes within timeout
-        FD_ZERO(&fdset);
-        FD_SET(sock, &fdset);
-        tv.tv_sec = 0;
-        tv.tv_usec = 50000;
-
-        if (select(sock + 1, NULL, &fdset, NULL, &tv) > 0) {
-            socklen_t len = sizeof(err);
-            getsockopt(sock, SOL_SOCKET, SO_ERROR, &err, &len);
-            if (err == 0) {
-                close(sock);
-                return 1; // Port is listening
-            }
-        }
-    }
-
-    close(sock);
-    return 0; // Not listening or timed out
-}*/
-
 struct AcceptedSocket * acceptIncomingConnection(int serverSocketFD);
 void acceptNewConnectionAndReceiveAndPrintItsData(int serverSocketFD);
 void *receiveAndPrintIncomingData(void *args);
@@ -100,8 +52,6 @@ void *startAcceptingIncomingConnections(void *args);
 void receiveAndPrintIncomingDataOnSeparateThread(struct recvargs* arguments);
 
 void sendReceivedMessageToTheOtherClients(char *buffer,int socketFD);
-
-//struct AcceptedSocket acceptedSockets[10] ;
 
 int availableIPsSockets[numberofconnsallowed];
 struct sockaddr_in *availableIPsAdresses[numberofconnsallowed];
@@ -119,18 +69,28 @@ void ConnectToIPs() {
         int connectionSocketFD = createTCPIpv4Socket();
         struct sockaddr_in *connectionAddress = CreateIPv4Address(ip,50000);
 
+        struct timeval timeout;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 50000;
+
+        // Set send timeout (applies to connect too)
+        if (setsockopt(connectionSocketFD, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0) {
+            perror("setsockopt");
+        }
+
         int result = connect(connectionSocketFD,(struct sockaddr *)connectionAddress,sizeof (*connectionAddress));
 
         if(result == 0) {
             printf("connection was successful\n");
             availableIPsSockets[availableIPsidx] = connectionSocketFD;
             availableIPsAdresses[availableIPsidx] = connectionAddress;
-            availableIPsAdressesinstring[availableIPsidx] = ip;
-            availableIPsidx++;
+            availableIPsAdressesinstring[availableIPsidx] = strdup(ip); //i still dont know what is the problem with this,
+            availableIPsidx++;                                          //but it has to be duped bc of memory address issues :/
         }
         else {
-            printf("connection was not successful\n");
-            printf("The last error message is: %s\n", strerror(errno));
+            close(connectionSocketFD);
+            //printf("connection was not successful\n");
+            //printf("The last error message is: %s\n", strerror(errno));
         }
     }
 }
@@ -149,6 +109,8 @@ void* startAcceptingIncomingConnections(void *args) {
     while(true)
     {
         struct AcceptedSocket* clientSocket  = acceptIncomingConnection(serverSocketFD);
+        if (!clientSocket->acceptedSuccessfully)
+            continue;
         acceptedSocketCount++;
         char client_ip[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &clientSocket->address.sin_addr, client_ip, sizeof(client_ip));
@@ -163,9 +125,18 @@ void* startAcceptingIncomingConnections(void *args) {
             }
         }
         if (!exist) {
-            availableIPsSockets[availableIPsidx++] = clientSocket->acceptedSocketFD;
-            availableIPsAdresses[availableIPsidx++] = &clientSocket->address;
-            availableIPsAdressesinstring[availableIPsidx++] = client_ip;
+            if (availableIPsidx == 0) {
+                availableIPsSockets[availableIPsidx] = clientSocket->acceptedSocketFD;
+                availableIPsAdresses[availableIPsidx] = &clientSocket->address;
+                availableIPsAdressesinstring[availableIPsidx] = client_ip;
+                availableIPsidx++;
+            }
+            else {
+                availableIPsidx++;
+                availableIPsSockets[availableIPsidx] = clientSocket->acceptedSocketFD;
+                availableIPsAdresses[availableIPsidx] = &clientSocket->address;
+                availableIPsAdressesinstring[availableIPsidx] = client_ip;
+            }
             connectedSocketFD = createTCPIpv4Socket();
             connectedSocketAddress = CreateIPv4Address(client_ip,50000);
         }
@@ -232,18 +203,31 @@ void* receiveAndPrintIncomingData(void *args) {
 
 struct AcceptedSocket * acceptIncomingConnection(int serverSocketFD) {
     struct sockaddr_in clientAddress ;
-    int clientAddressSize = sizeof (struct sockaddr);
+    socklen_t clientAddressSize = sizeof (struct sockaddr_in);
+retryacept:
     int clientSocketFD = accept(serverSocketFD,(struct sockaddr *)&clientAddress,&clientAddressSize);
     //obtain the other side's filedescriptor that gives us info about them
+
+    if(clientSocketFD == -1) {
+        char ip[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &clientAddress.sin_addr, ip, sizeof(ip));
+        printf("%s, %d\n",ip,ntohs(clientAddress.sin_port));
+        usleep(1000);
+        goto retryacept;
+    }
+
+    printf("accepted\n");
 
     struct AcceptedSocket* acceptedSocket = malloc(sizeof (struct AcceptedSocket));
     acceptedSocket->address = clientAddress;
     acceptedSocket->acceptedSocketFD = clientSocketFD;
-    acceptedSocket->acceptedSuccessfully = clientSocketFD>0;
+    acceptedSocket->acceptedSuccessfully = clientSocketFD>=0;
     //put this info into a struct that we made
 
-    if(!acceptedSocket->acceptedSuccessfully)
+    if(!acceptedSocket->acceptedSuccessfully) {
+        //printf("The last error message is: %s\n", strerror(errno));
         acceptedSocket->error = clientSocketFD;
+    }
 
     return acceptedSocket;
 }
@@ -255,8 +239,12 @@ void readConsoleEntriesAndSendToOthers(int serverSocketFD) {
     ssize_t  nameCount = getline(&name,&nameSize,stdin);
     name[nameCount-1]=0;
 
+    printf("Scouting Started\n");
+
     startAcceptingIncomingConnectionsOnSeparateThread(serverSocketFD); //start accpeting incoming connections after host's blocking part
     ConnectToIPs(); //loads ip's in an array
+
+    printf("Scouting Done\n");
 
     if (acceptedSocketCount<1) {
         printf("currently there are noone here :/\n");
@@ -301,11 +289,11 @@ void readConsoleEntriesAndSendToOthers(int serverSocketFD) {
 int main(int argc, char *argv[]) {
 
     /*if (argc < 2) {
-        printf("Please provide your IP address with the program start", argv[0]);
+        printf("Please provide your IP address with the program start");
         return 1;
     }*/
 
-    //char *my_ip = argv[1]; we should get ther ip so we can exclude it form search
+    //char *my_ip = argv[1]; we should get their ip so we can exclude it form search
 
     int serverSocketFD = createTCPIpv4Socket();
     struct sockaddr_in *serverAddress = CreateIPv4Address("",50000); //listen for anyone on port 2000
@@ -319,6 +307,7 @@ int main(int argc, char *argv[]) {
     else {
         printf("socket failed to bound, probably because the port is already in use\n");
         printf("The last error message is: %s\n", strerror(errno));
+        free(serverAddress);
         return 1;
     }
 
@@ -342,7 +331,9 @@ int main(int argc, char *argv[]) {
     close(serverSocketFD);
     for (int i = 0; i < availableIPsidx; ++i) {
         close(availableIPsSockets[i]);
+        free(availableIPsAdresses[i]);
+        free(availableIPsAdressesinstring[i]);
     }
-
+    free(serverAddress);
     return 0;
 }
