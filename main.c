@@ -20,10 +20,10 @@ struct AcceptedSocket
     bool acceptedSuccessfully;
 };
 
-struct recvargs {
+/*struct recvargs {
     struct AcceptedSocket *acceptedSocket;
     int connectedSocketFD;
-};
+};*/
 
 int createTCPIpv4Socket(void) {
     return socket(AF_INET, SOCK_STREAM, 0);
@@ -49,7 +49,7 @@ void *receiveAndPrintIncomingData(void *args);
 
 void *startAcceptingIncomingConnections(void *args);
 
-void receiveAndPrintIncomingDataOnSeparateThread(struct recvargs* arguments);
+void receiveAndPrintIncomingDataOnSeparateThread(int* arguments);
 
 void sendReceivedMessageToTheOtherClients(char *buffer,int socketFD);
 
@@ -82,10 +82,21 @@ void ConnectToIPs() {
 
         if(result == 0) {
             printf("connection was successful\n");
-            availableIPsSockets[availableIPsidx] = connectionSocketFD;
-            availableIPsAdresses[availableIPsidx] = connectionAddress;
-            availableIPsAdressesinstring[availableIPsidx] = strdup(ip); //i still dont know what is the problem with this,
-            availableIPsidx++;                                          //but it has to be duped bc of memory address issues :/
+            char *cpyip = strdup(ip);
+            bool exist = false;
+            for (int i = 0; i < availableIPsidx; ++i) {
+                if (strcmp(availableIPsAdressesinstring[i],cpyip) == 0) {
+                    exist = true;
+                }
+            }
+            if (!exist) {
+                availableIPsSockets[availableIPsidx] = connectionSocketFD;
+                availableIPsAdresses[availableIPsidx] = connectionAddress;
+                availableIPsAdressesinstring[availableIPsidx] = cpyip; //i still dont know what is the problem with this,
+                availableIPsidx++;                                          //but it has to be duped bc of memory address issues :/
+            }
+            else
+                continue;
         }
         else {
             close(connectionSocketFD);
@@ -109,8 +120,6 @@ void* startAcceptingIncomingConnections(void *args) {
     while(true)
     {
         struct AcceptedSocket* clientSocket  = acceptIncomingConnection(serverSocketFD);
-        if (!clientSocket->acceptedSuccessfully)
-            continue;
         acceptedSocketCount++;
         char client_ip[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &clientSocket->address.sin_addr, client_ip, sizeof(client_ip));
@@ -125,20 +134,12 @@ void* startAcceptingIncomingConnections(void *args) {
             }
         }
         if (!exist) {
-            if (availableIPsidx == 0) {
-                availableIPsSockets[availableIPsidx] = clientSocket->acceptedSocketFD;
-                availableIPsAdresses[availableIPsidx] = &clientSocket->address;
-                availableIPsAdressesinstring[availableIPsidx] = client_ip;
+                connectedSocketFD = createTCPIpv4Socket();
+                connectedSocketAddress = CreateIPv4Address(client_ip,50000);
+                availableIPsSockets[availableIPsidx] = connectedSocketFD;
+                availableIPsAdresses[availableIPsidx] = connectedSocketAddress;
+                availableIPsAdressesinstring[availableIPsidx] = strdup(client_ip);
                 availableIPsidx++;
-            }
-            else {
-                availableIPsidx++;
-                availableIPsSockets[availableIPsidx] = clientSocket->acceptedSocketFD;
-                availableIPsAdresses[availableIPsidx] = &clientSocket->address;
-                availableIPsAdressesinstring[availableIPsidx] = client_ip;
-            }
-            connectedSocketFD = createTCPIpv4Socket();
-            connectedSocketAddress = CreateIPv4Address(client_ip,50000);
         }
             reconnect:
             int result = connect(connectedSocketFD,(struct sockaddr *)connectedSocketAddress,sizeof *connectedSocketAddress);
@@ -158,26 +159,24 @@ void* startAcceptingIncomingConnections(void *args) {
         }
 
 
-        struct recvargs recvargs;
-        recvargs.acceptedSocket = clientSocket;
-        recvargs.connectedSocketFD = connectedSocketFD;
+        /*struct recvargs *recvargs = malloc(sizeof(struct recvargs));
+        recvargs->acceptedSocket = clientSocket;
+        recvargs->connectedSocketFD = connectedSocketFD;*/
 
-        receiveAndPrintIncomingDataOnSeparateThread(&recvargs);
+        receiveAndPrintIncomingDataOnSeparateThread(&clientSocket->acceptedSocketFD);
     }
 }
 
 
 
-void receiveAndPrintIncomingDataOnSeparateThread(struct recvargs * argument) {
+void receiveAndPrintIncomingDataOnSeparateThread(int * argument) {
 
     pthread_t id;
     pthread_create(&id,NULL,receiveAndPrintIncomingData,argument);
 }
 
 void* receiveAndPrintIncomingData(void *args) {
-    struct recvargs *arguments = (struct recvargs *) args;
-    int socketFD = arguments->acceptedSocket->acceptedSocketFD;
-    int connectedSocketFD = arguments->connectedSocketFD;
+    int socketFD = *(int*)args;
     char buffer[1024];
 
     while (true) //here we want to receive the message of a certain socket
@@ -197,37 +196,27 @@ void* receiveAndPrintIncomingData(void *args) {
             break;
         }
     }
-    close(connectedSocketFD);
+    //close(connectedSocketFD);
     close(socketFD);
+    free(args);
 }
 
 struct AcceptedSocket * acceptIncomingConnection(int serverSocketFD) {
     struct sockaddr_in clientAddress ;
     socklen_t clientAddressSize = sizeof (struct sockaddr_in);
-retryacept:
+    retry:
     int clientSocketFD = accept(serverSocketFD,(struct sockaddr *)&clientAddress,&clientAddressSize);
     //obtain the other side's filedescriptor that gives us info about them
 
-    if(clientSocketFD == -1) {
-        char ip[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &clientAddress.sin_addr, ip, sizeof(ip));
-        printf("%s, %d\n",ip,ntohs(clientAddress.sin_port));
-        usleep(1000);
-        goto retryacept;
+    if(clientSocketFD <= 0) {
+        //printf("The last error message is: %s\n", strerror(errno));
+        goto retry;
     }
-
-    printf("accepted\n");
 
     struct AcceptedSocket* acceptedSocket = malloc(sizeof (struct AcceptedSocket));
     acceptedSocket->address = clientAddress;
     acceptedSocket->acceptedSocketFD = clientSocketFD;
-    acceptedSocket->acceptedSuccessfully = clientSocketFD>=0;
     //put this info into a struct that we made
-
-    if(!acceptedSocket->acceptedSuccessfully) {
-        //printf("The last error message is: %s\n", strerror(errno));
-        acceptedSocket->error = clientSocketFD;
-    }
 
     return acceptedSocket;
 }
@@ -241,7 +230,6 @@ void readConsoleEntriesAndSendToOthers(int serverSocketFD) {
 
     printf("Scouting Started\n");
 
-    startAcceptingIncomingConnectionsOnSeparateThread(serverSocketFD); //start accpeting incoming connections after host's blocking part
     ConnectToIPs(); //loads ip's in an array
 
     printf("Scouting Done\n");
@@ -293,7 +281,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }*/
 
-    //char *my_ip = argv[1]; we should get their ip so we can exclude it form search
+    //char *my_ip = argv[1]; we should get their ip so we can exclude it from search
 
     int serverSocketFD = createTCPIpv4Socket();
     struct sockaddr_in *serverAddress = CreateIPv4Address("",50000); //listen for anyone on port 2000
@@ -323,6 +311,8 @@ int main(int argc, char *argv[]) {
     args.serverSocketFD = serverSocketFD;
     args.connectedSocketFD = connectionSocketFD;
     args.connectedSocketAddress = connectionAddress;*/
+
+    startAcceptingIncomingConnectionsOnSeparateThread(serverSocketFD); //start accpeting incoming connections after host's blocking part
 
     readConsoleEntriesAndSendToOthers(serverSocketFD);
 
