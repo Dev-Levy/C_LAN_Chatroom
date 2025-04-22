@@ -9,216 +9,82 @@
 #include <malloc.h>
 #include <errno.h>
 #include <stdlib.h>
+#include "Sockets.h"
 
 #define numberofconnsallowed 10
-
-struct AcceptedSocket
-{
-    int acceptedSocketFD;
-    struct sockaddr_in address;
-    int error;
-    bool acceptedSuccessfully;
-};
-
-/*struct recvargs {
-    struct AcceptedSocket *acceptedSocket;
-    int connectedSocketFD;
-};*/
-
-int createTCPIpv4Socket(void) {
-    return socket(AF_INET, SOCK_STREAM, 0);
-}
-
-struct sockaddr_in* CreateIPv4Address(char* ip, int port) {
-    struct sockaddr_in  *address = malloc(sizeof(struct sockaddr_in)); //alloc mem for the address
-    address->sin_family = AF_INET; //give address family ipv4
-    address->sin_port = htons(port);  //give the address a port
-
-    if(strlen(ip) ==0) //if there is no IP then listen to any ip
-        address->sin_addr.s_addr = INADDR_ANY;
-    else
-        inet_pton(AF_INET,ip,&address->sin_addr.s_addr);
-    //if there is than convert it to usable format than give it to the address
-
-    return address;
-}
-
-struct AcceptedSocket * acceptIncomingConnection(int serverSocketFD);
-void acceptNewConnectionAndReceiveAndPrintItsData(int serverSocketFD);
-void *receiveAndPrintIncomingData(void *args);
-
-void *startAcceptingIncomingConnections(void *args);
-
-void receiveAndPrintIncomingDataOnSeparateThread(int* arguments);
-
-void sendReceivedMessageToTheOtherClients(char *buffer,int socketFD);
 
 int availableIPsSockets[numberofconnsallowed];
 struct sockaddr_in *availableIPsAdresses[numberofconnsallowed];
 char *availableIPsAdressesinstring[numberofconnsallowed];
+int disconnectedSocketIndexes[numberofconnsallowed];
+int disconnectedSocketsIndex;
 int availableIPsidx = 0;
 int acceptedSocketCount = 0;
 char chardev[]; //char device
 
-void ConnectToIPs() {
-    char ip[INET_ADDRSTRLEN]; //scouting on port 50000
+int main(int argc, char *argv[]) {
 
-    for (int i = 1; i < 255; ++i) { //try to connect to everyone
-        if (i == 50){continue;}
-        snprintf(ip, sizeof(ip), "192.168.100.%d", i);
-        int connectionSocketFD = createTCPIpv4Socket();
-        struct sockaddr_in *connectionAddress = CreateIPv4Address(ip,50000);
+    /*if (argc < 2) {
+        printf("Please provide your IP address with the program start");
+        return 1;
+    }*/
 
-        struct timeval timeout;
-        timeout.tv_sec = 0;
-        timeout.tv_usec = 50000;
+    //char *my_ip = argv[1]; we should get their ip so we can exclude it from search
 
-        // Set send timeout (applies to connect too)
-        if (setsockopt(connectionSocketFD, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0) {
-            perror("setsockopt");
-        }
+    int serverSocketFD = init_network();
 
-        int result = connect(connectionSocketFD,(struct sockaddr *)connectionAddress,sizeof (*connectionAddress));
-
-        if(result == 0) {
-            printf("connection was successful\n");
-            char *cpyip = strdup(ip);
-            bool exist = false;
-            for (int i = 0; i < availableIPsidx; ++i) {
-                if (strcmp(availableIPsAdressesinstring[i],cpyip) == 0) {
-                    exist = true;
-                }
-            }
-            if (!exist) {
-                availableIPsSockets[availableIPsidx] = connectionSocketFD;
-                availableIPsAdresses[availableIPsidx] = connectionAddress;
-                availableIPsAdressesinstring[availableIPsidx] = cpyip; //i still dont know what is the problem with this,
-                availableIPsidx++;                                          //but it has to be duped bc of memory address issues :/
-            }
-            else
-                continue;
-        }
-        else {
-            close(connectionSocketFD);
-            //printf("connection was not successful\n");
-            //printf("The last error message is: %s\n", strerror(errno));
-        }
-    }
-}
-
-void startAcceptingIncomingConnectionsOnSeparateThread(int serverSocketFD) {
-
-    pthread_t id;
-    pthread_create(&id,NULL,startAcceptingIncomingConnections,&serverSocketFD);
-}
-
-void* startAcceptingIncomingConnections(void *args) {
-    int connectedSocketFD;
-    struct sockaddr_in *connectedSocketAddress;
-    int serverSocketFD = *(int *)args;
-
-    while(true)
-    {
-        struct AcceptedSocket* clientSocket  = acceptIncomingConnection(serverSocketFD);
-        acceptedSocketCount++;
-        char client_ip[INET_ADDRSTRLEN];
-        inet_ntop(AF_INET, &clientSocket->address.sin_addr, client_ip, sizeof(client_ip));
-        bool exist = false;
-        int idxoffounduser;
-        for (int i = 0; i < availableIPsidx; ++i) {
-            if (strcmp(availableIPsAdressesinstring[i],client_ip) == 0) {
-                exist = true;
-                connectedSocketFD = availableIPsSockets[i];
-                connectedSocketAddress = availableIPsAdresses[i];
-                idxoffounduser = i;
-            }
-        }
-        if (!exist) {
-                connectedSocketFD = createTCPIpv4Socket();
-                connectedSocketAddress = CreateIPv4Address(client_ip,50000);
-                availableIPsSockets[availableIPsidx] = connectedSocketFD;
-                availableIPsAdresses[availableIPsidx] = connectedSocketAddress;
-                availableIPsAdressesinstring[availableIPsidx] = strdup(client_ip);
-                availableIPsidx++;
-        }
-            reconnect:
-            int result = connect(connectedSocketFD,(struct sockaddr *)connectedSocketAddress,sizeof *connectedSocketAddress);
-
-            if(result == 0)
-                printf("CounterConnection successful\n");
-            else {
-                printf("CounterConnection failed\n");
-                printf("The last error message is: %s\n", strerror(errno));
-                if (errno == EBADF) {
-                    connectedSocketFD = createTCPIpv4Socket();
-                    availableIPsSockets[idxoffounduser] = connectedSocketFD;
-                    connectedSocketAddress = CreateIPv4Address(client_ip,50000);
-                    availableIPsAdresses[idxoffounduser] = connectedSocketAddress;
-                    goto reconnect;
-                }
-        }
-
-
-        /*struct recvargs *recvargs = malloc(sizeof(struct recvargs));
-        recvargs->acceptedSocket = clientSocket;
-        recvargs->connectedSocketFD = connectedSocketFD;*/
-
-        receiveAndPrintIncomingDataOnSeparateThread(&clientSocket->acceptedSocketFD);
-    }
-}
-
-
-
-void receiveAndPrintIncomingDataOnSeparateThread(int * argument) {
-
-    pthread_t id;
-    pthread_create(&id,NULL,receiveAndPrintIncomingData,argument);
-}
-
-void* receiveAndPrintIncomingData(void *args) {
-    int socketFD = *(int*)args;
-    char buffer[1024];
-
-    while (true) //here we want to receive the message of a certain socket
-    {
-        ssize_t  amountReceived = recv(socketFD,buffer,1024,0);
-
-        if(amountReceived>0)
-        {
-            buffer[amountReceived] = 0; //if its successful we write it out
-            printf("%s\n",buffer); //chardevice
-        }
-
-        if(amountReceived==0) //here we should detect a disconnect
-        {
-            printf("Someone has disconnected :(\n");
-            acceptedSocketCount--;
-            break;
-        }
-    }
-    //close(connectedSocketFD);
-    close(socketFD);
-    free(args);
-}
-
-struct AcceptedSocket * acceptIncomingConnection(int serverSocketFD) {
-    struct sockaddr_in clientAddress ;
-    socklen_t clientAddressSize = sizeof (struct sockaddr_in);
-    retry:
-    int clientSocketFD = accept(serverSocketFD,(struct sockaddr *)&clientAddress,&clientAddressSize);
-    //obtain the other side's filedescriptor that gives us info about them
-
-    if(clientSocketFD <= 0) {
-        //printf("The last error message is: %s\n", strerror(errno));
-        goto retry;
+    if (serverSocketFD == -1) {
+        printf("Error initializing serversocket\n");
+    } else {
+        printf("Server socket initialized\n");
     }
 
-    struct AcceptedSocket* acceptedSocket = malloc(sizeof (struct AcceptedSocket));
-    acceptedSocket->address = clientAddress;
-    acceptedSocket->acceptedSocketFD = clientSocketFD;
-    //put this info into a struct that we made
+    startAcceptingIncomingConnectionsOnSeparateThread(serverSocketFD);
 
-    return acceptedSocket;
+    readConsoleEntriesAndSendToOthers(serverSocketFD);
+
+    shutdownNetwork(serverSocketFD);
+
+    return 0;
+}
+
+int init_network() {
+    int serverSocketFD = createTCPIpv4Socket();
+    struct sockaddr_in *serverAddress = CreateIPv4Address("",50000); //listen for anyone on port 2000
+
+    int opt = 1; //this code turns off TURN_WAIT so that the port won't linger after close
+    setsockopt(serverSocketFD, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+
+    int result = bind(serverSocketFD,(struct sockaddr *)serverAddress, sizeof(*serverAddress));
+    if(result == 0) //We want to tell the system that we need port 50000 for connections.
+        printf("socket was bound successfully\n"); //If successful result is 0
+    else {
+        printf("socket failed to bound, probably because the port is already in use\n");
+        printf("The last error message is: %s\n", strerror(errno));
+        free(serverAddress);
+        return -1;
+    }
+
+    int listenResult = listen(serverSocketFD,numberofconnsallowed); //we are waiting for connections, but the max is 10
+    if(listenResult == 0)
+        printf("socket listening successfully\n");
+    else {
+        printf("socket listening was not successful\n");
+        printf("The last error message is: %s\n", strerror(errno));
+    }
+    free(serverAddress);
+    return serverSocketFD;
+}
+
+void shutdownNetwork(int serverSocketFD) {
+    shutdown(serverSocketFD,SHUT_RDWR);
+
+    close(serverSocketFD);
+    for (int i = 0; i < availableIPsidx; ++i) {
+        close(availableIPsSockets[i]);
+        free(availableIPsAdresses[i]);
+        free(availableIPsAdressesinstring[i]);
+    }
 }
 
 void readConsoleEntriesAndSendToOthers(int serverSocketFD) {
@@ -265,65 +131,210 @@ void readConsoleEntriesAndSendToOthers(int serverSocketFD) {
             }
 
             for (int i = 0; i < availableIPsidx; ++i) { //try to connect to everyone
+                if (availableIPsSockets[i] == 0)
+                    continue;
                 int connectionSocketFD = availableIPsSockets[i];
                 ssize_t amountWasSent =  send(connectionSocketFD,
                                           buffer,
                                           strlen(buffer), 0);
+                printf("sent %zd bytes\n",amountWasSent);
             }
         }
     }
 }
 
-int main(int argc, char *argv[]) {
+//send and get message will be put on the chardevice
 
-    /*if (argc < 2) {
-        printf("Please provide your IP address with the program start");
-        return 1;
-    }*/
+void ConnectToIPs() {
+    char ip[INET_ADDRSTRLEN]; //scouting on port 50000
 
-    //char *my_ip = argv[1]; we should get their ip so we can exclude it from search
+    for (int i = 1; i < 255; ++i) { //try to connect to everyone
+        if (i == 50){continue;}
+        snprintf(ip, sizeof(ip), "192.168.100.%d", i);
+        int connectionSocketFD = createTCPIpv4Socket();
+        struct sockaddr_in *connectionAddress = CreateIPv4Address(ip,50000);
 
-    int serverSocketFD = createTCPIpv4Socket();
-    struct sockaddr_in *serverAddress = CreateIPv4Address("",50000); //listen for anyone on port 2000
+        struct timeval timeout;
+        timeout.tv_sec = 0;
+        timeout.tv_usec = 50000;
 
-    int opt = 1; //this code turns off TURN_WAIT so that the port won't linger after close
-    setsockopt(serverSocketFD, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+        // Set send timeout (applies to connect too)
+        if (setsockopt(connectionSocketFD, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout)) < 0) {
+            perror("setsockopt");
+        }
 
-    int result = bind(serverSocketFD,(struct sockaddr *)serverAddress, sizeof(*serverAddress));
-    if(result == 0) //We want to tell the system that we need port 50000 for connections.
-        printf("socket was bound successfully\n"); //If successful result is 0
-    else {
-        printf("socket failed to bound, probably because the port is already in use\n");
-        printf("The last error message is: %s\n", strerror(errno));
-        free(serverAddress);
-        return 1;
+        int result = connect(connectionSocketFD,(struct sockaddr *)connectionAddress,sizeof (*connectionAddress));
+
+        if(result == 0) {
+            printf("connection was successful\n");
+            char *copyip = strdup(ip);
+            bool exist = false;
+            for (int i = 0; i < availableIPsidx; ++i) {
+                if (strcmp(availableIPsAdressesinstring[i],copyip) == 0) {
+                    exist = true;
+                }
+            }
+            if (!exist) {
+                int* socketFDPointer = malloc(sizeof(int));
+                *socketFDPointer = connectionSocketFD;
+                    availableIPsSockets[availableIPsidx] = connectionSocketFD;
+                    availableIPsAdresses[availableIPsidx] = connectionAddress;
+                    availableIPsAdressesinstring[availableIPsidx] = copyip;
+                    availableIPsidx++;
+                    acceptedSocketCount++;
+                    struct recvargs *recvargs = malloc(sizeof(struct recvargs));
+                    recvargs->socketFD = *socketFDPointer;
+                    recvargs->socketIndex = availableIPsidx-1;
+                    receiveAndPrintIncomingDataOnSeparateThread(recvargs);
+                }
+
+            //free(copyip);
+        }
+        else {
+            close(connectionSocketFD);
+            //printf("connection was not successful\n");
+            //printf("The last error message is: %s\n", strerror(errno));
+        }
+
     }
 
-    int listenResult = listen(serverSocketFD,numberofconnsallowed); //we are waiting for connections, but the max is 10
-    if(listenResult == 0)
-        printf("socket listening successfully\n");
-    else {
-        printf("socket listening was not successful\n");
-        printf("The last error message is: %s\n", strerror(errno));
-    }
-
-    /*struct conacceptargs args;
-    args.serverSocketFD = serverSocketFD;
-    args.connectedSocketFD = connectionSocketFD;
-    args.connectedSocketAddress = connectionAddress;*/
-
-    startAcceptingIncomingConnectionsOnSeparateThread(serverSocketFD); //start accpeting incoming connections after host's blocking part
-
-    readConsoleEntriesAndSendToOthers(serverSocketFD);
-
-    shutdown(serverSocketFD,SHUT_RDWR);
-
-    close(serverSocketFD);
-    for (int i = 0; i < availableIPsidx; ++i) {
-        close(availableIPsSockets[i]);
-        free(availableIPsAdresses[i]);
-        free(availableIPsAdressesinstring[i]);
-    }
-    free(serverAddress);
-    return 0;
 }
+
+void startAcceptingIncomingConnectionsOnSeparateThread(int serverSocketFD) {
+
+    pthread_t id;
+    pthread_create(&id,NULL,startAcceptingIncomingConnections,&serverSocketFD);
+}
+
+void* startAcceptingIncomingConnections(void *args) {
+    //int connectedSocketFD;
+    //struct sockaddr_in *connectedSocketAddress;
+    int serverSocketFD = *(int *)args;
+
+    while(true)
+    {
+        struct AcceptedSocket* clientSocket  = acceptIncomingConnection(serverSocketFD);
+        char client_ip[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &clientSocket->address.sin_addr, client_ip, sizeof(client_ip));
+        bool exist = false;
+        int idxOfFoundUser;
+        for (int i = 0; i < availableIPsidx; ++i) {
+            if (strcmp(availableIPsAdressesinstring[i],client_ip) == 0) {
+                exist = true;
+            }
+        }
+        if (!exist) {
+            if (disconnectedSocketsIndex > 0) {
+                int index = disconnectedSocketIndexes[disconnectedSocketsIndex-1];
+                availableIPsSockets[index] = clientSocket->acceptedSocketFD;
+                availableIPsAdresses[index] = &clientSocket->address;
+                availableIPsAdressesinstring[index] = strdup(client_ip);
+                disconnectedSocketsIndex--;
+                acceptedSocketCount++;
+                struct recvargs *recvargs = malloc(sizeof(struct recvargs));
+                recvargs->socketFD = clientSocket->acceptedSocketFD;
+                recvargs->socketIndex = index;
+                receiveAndPrintIncomingDataOnSeparateThread(recvargs);
+            } else {
+                availableIPsSockets[availableIPsidx] = clientSocket->acceptedSocketFD;
+                availableIPsAdresses[availableIPsidx] = &clientSocket->address;
+                availableIPsAdressesinstring[availableIPsidx] = strdup(client_ip);
+                availableIPsidx++;
+                acceptedSocketCount++;
+                struct recvargs *recvargs = malloc(sizeof(struct recvargs));
+                recvargs->socketFD = clientSocket->acceptedSocketFD;
+                recvargs->socketIndex = availableIPsidx-1;
+                receiveAndPrintIncomingDataOnSeparateThread(recvargs);
+            }
+        }
+        /*while (connect(connectedSocketFD,(struct sockaddr *)connectedSocketAddress,sizeof *connectedSocketAddress) != 0 && errno == EBADF) {
+            printf("CounterConnection failed\n");
+            printf("The last error message is: %s\n", strerror(errno));
+            if (errno == EBADF) {
+                connectedSocketFD = createTCPIpv4Socket();
+                availableIPsSockets[idxOfFoundUser] = connectedSocketFD;
+                connectedSocketAddress = CreateIPv4Address(client_ip,50000);
+                availableIPsAdresses[idxOfFoundUser] = connectedSocketAddress;
+            }
+        }
+        printf("CounterConnection successful\n");*/
+
+    }
+}
+
+struct AcceptedSocket * acceptIncomingConnection(int serverSocketFD) {
+    struct sockaddr_in clientAddress ;
+    socklen_t clientAddressSize = sizeof (struct sockaddr_in);
+    int clientSocketFD = 0;
+    while (clientSocketFD <= 0) {
+        clientSocketFD = accept(serverSocketFD,(struct sockaddr *)&clientAddress,&clientAddressSize);
+        //obtain the other side's filedescriptor that gives us info about them
+    }
+
+    struct AcceptedSocket* acceptedSocket = malloc(sizeof (struct AcceptedSocket));
+    acceptedSocket->address = clientAddress;
+    acceptedSocket->acceptedSocketFD = clientSocketFD;
+    //put this info into a struct that we made
+
+    return acceptedSocket;
+}
+
+
+void receiveAndPrintIncomingDataOnSeparateThread(struct recvargs * argument) {
+
+    pthread_t id;
+    pthread_create(&id,NULL,receiveAndPrintIncomingData,argument);
+}
+
+void* receiveAndPrintIncomingData(void *args) {
+    struct recvargs *recvargs = args;
+    int socketIndex = recvargs->socketIndex;
+    int socketFD = recvargs->socketFD;
+    char buffer[1024];
+
+    printf("Socket: %d\n",socketFD);
+
+    while (true) //here we want to receive the message of a certain socket
+    {
+        ssize_t  amountReceived = recv(socketFD,buffer,1024,0);
+
+        if(amountReceived>0)
+        {
+            buffer[amountReceived] = 0; //if its successful we write it out
+            printf("%s\n",buffer); //chardevice
+        }
+
+        if(amountReceived==0) //here we detect a disconnect
+        {
+            printf("Someone has disconnected :(\n");
+            acceptedSocketCount--; //deletion from the arrays
+            availableIPsAdressesinstring[socketIndex] = "";
+            availableIPsSockets[socketIndex] = 0;
+            availableIPsAdresses[socketIndex] = 0;
+            disconnectedSocketIndexes[disconnectedSocketsIndex] = socketIndex;
+            disconnectedSocketsIndex++;
+            break;
+        }
+    }
+    close(socketFD);
+}
+
+int createTCPIpv4Socket(void) {
+    return socket(AF_INET, SOCK_STREAM, 0);
+}
+
+struct sockaddr_in* CreateIPv4Address(char* ip, int port) {
+    struct sockaddr_in  *address = malloc(sizeof(struct sockaddr_in)); //alloc mem for the address
+    address->sin_family = AF_INET; //give address family ipv4
+    address->sin_port = htons(port);  //give the address a port
+
+    if(strlen(ip) ==0) //if there is no IP then listen to any ip
+        address->sin_addr.s_addr = INADDR_ANY;
+    else
+        inet_pton(AF_INET,ip,&address->sin_addr.s_addr);
+    //if there is than convert it to usable format than give it to the address
+
+    return address;
+}
+
+
