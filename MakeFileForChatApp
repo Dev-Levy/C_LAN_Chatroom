@@ -1,0 +1,10 @@
+CC = gcc
+CFLAGS = -Wall -Wextra
+
+all: chat_client
+
+chat_client: chat_client.c
+	$(CC) $(CFLAGS) -o chat_client chat_client.c
+
+clean:
+	rm -f chat_client
