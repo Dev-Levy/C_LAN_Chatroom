@@ -58,6 +58,7 @@ static int __init chat_device_init(void) {
     printk(KERN_INFO "ChatDB: Initializing the Chat Database device\n");
 
     // Allocate a major number dynamically
+    // So basically this registers and allocates a major number for the device
     majorNumber = register_chrdev(0, DEVICE_NAME, &fops);
     if (majorNumber < 0) {
         printk(KERN_ALERT "ChatDB failed to register a major number\n");
@@ -65,7 +66,7 @@ static int __init chat_device_init(void) {
     }
     printk(KERN_INFO "ChatDB: registered with major number %d\n", majorNumber);
 
-    // Register the device class
+    // Register the device class Dont know what this do :(
     chatClass = class_create(DEVICE_NAME);
     if (IS_ERR(chatClass)) {
         unregister_chrdev(majorNumber, DEVICE_NAME);
@@ -74,7 +75,8 @@ static int __init chat_device_init(void) {
     }
     printk(KERN_INFO "ChatDB: device class registered\n");
 
-    // Create the device driver
+    // Create the device driver 
+    //Basically this does the whole sudo mknod command creates a devices file and link the major number with it
     chatDevice = device_create(chatClass, NULL, MKDEV(majorNumber, 0), NULL, DEVICE_NAME);
     if (IS_ERR(chatDevice)) {
         class_destroy(chatClass);
