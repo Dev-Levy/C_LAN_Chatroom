@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <time.h>
+#include <errno.h>
 
 #define DEVICE_PATH "/dev/chatdb"
 #define MAX_MSG_SIZE 256
@@ -91,8 +92,11 @@ void read_messages(int fd) {
     printf("\n----- Chat Messages -----\n");
     
     // Move to the beginning of the device
-    lseek(fd, 0, SEEK_SET);
-    
+    off_t x=  lseek(fd, pos, SEEK_SET); //flag
+    // printf("The last error: %d\n", errno);
+    // printf("The fd: %d\n", fd);
+    // printf("Offset :D %ld\n",x);
+
     // Read all messages
     while ((bytes_read = read(fd, buffer, sizeof(buffer) - 1)) > 0) {
         buffer[bytes_read] = '\0';

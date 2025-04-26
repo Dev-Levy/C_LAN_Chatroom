@@ -14,7 +14,7 @@
 #define MAX_MSG_SIZE 256
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Your Name");
+MODULE_AUTHOR("Marhakosztaga");
 MODULE_DESCRIPTION("A char device driver for chat application database");
 MODULE_VERSION("0.1");
 
@@ -43,6 +43,7 @@ static int dev_open(struct inode*, struct file*);
 static int dev_release(struct inode*, struct file*);
 static ssize_t dev_read(struct file*, char*, size_t, loff_t*);
 static ssize_t dev_write(struct file*, const char*, size_t, loff_t*);
+static loff_t dev_llseek(struct file *filep, loff_t offset, int whence);
 
 // File operations structure, we nust declare which operations should the driver implement, if we choose to not to implement some feature 
 // it fills with NULLS those functions
@@ -51,6 +52,7 @@ static struct file_operations fops = {
     .read = dev_read,
     .write = dev_write,
     .release = dev_release,
+    .llseek = dev_llseek
 };
 
 // Initialize the device
@@ -247,6 +249,32 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
     
     printk(KERN_INFO "ChatDB: Stored message from %s\n", sender);
     return len;
+}
+static loff_t dev_llseek(struct file *filep, loff_t offset, int whence)
+{
+    loff_t newpos = 0;
+    
+    switch(whence) {
+        case SEEK_SET:
+            newpos = offset;
+            break;
+        case SEEK_CUR:
+            newpos = filep->f_pos + offset;
+            break;
+        case SEEK_END:
+            // If you want to support seeking from end, define what "end" means
+            // For a chat DB, it could be the number of messages
+            newpos = chatDB->msg_count;
+            break;
+        default:
+            return -EINVAL;
+    }
+    
+    if (newpos < 0)
+        return -EINVAL;
+        
+    filep->f_pos = newpos;
+    return newpos;
 }
 
 module_init(chat_device_init);
