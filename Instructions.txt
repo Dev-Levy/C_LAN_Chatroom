@@ -1,0 +1,7 @@
+1. Have your chardev_database.c file in your folder with its makefile
+2. type in make which should do a kernel object file
+3. sudo insmod chat_device.ko calls the init function which actually creates the 
+   chardevice (register it, create class, create device with fops, initialize 
+   it, and allocates the needed memory (https://stackoverflow.com/questions/20079767/what-is-different-functions-malloc-and-kmalloc))
+   And initializes the database (could be a not one method)
+4. With this your chardevice should be created and you can look it up by cat /proc/devices | grep "yourchardevicename"
