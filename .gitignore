@@ -16,6 +16,7 @@
 *.ko
 *.mod
 *.mod.c
+*.o.d
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 

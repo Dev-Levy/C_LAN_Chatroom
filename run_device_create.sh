@@ -1,4 +1,4 @@
-cd ~/develop/kernel/chardev_test/C_LAN/Chatroom/
+cd ~/develop/kernel/chardev_test/C_LAN_Chatroom/
 
 make
 
