@@ -12,22 +12,24 @@
 
 int main()
 {
+    init_app();
+    //NETWORK - server create, bind, listen
+    //CHAR DEV - open, create DB
+
     cli_init();
+    //cli setup
+    
+    char* input = read_message();
+    send_to_all(input);
 
-    MessageQueue *queue;
-    if (network_init(&queue) != 0) 
-    {
-        printf("Network init failed");
-    }
+    // while (1) 
+    // {
+    //     display_recent_messages(queue);
+    //     read_and_send_message(queue);
+    // }
 
-    while (1) 
-    {
-        display_recent_messages(queue);
-        read_and_send_message(queue);
-    }
-
-    network_cleanup(queue);
-    return 0;
+    // network_cleanup(queue);
+    // return 0;
 }
 
 void cli_init()
@@ -37,7 +39,7 @@ void cli_init()
     printf("------------------------------------------");
 }
 
-void display_recent_messages(MessageQueue *queue) 
+void display_recent_messages() 
 {
     size_t count;
     const ChatMessage* messages = network_get_recent_messages(queue, &count);
@@ -57,7 +59,7 @@ void display_recent_messages(MessageQueue *queue)
     }
 }
 
-void read_and_send_message(MessageQueue *queue) 
+char* read_message() 
 {    
     char input[MSG_SIZE];
     
@@ -72,10 +74,7 @@ void read_and_send_message(MessageQueue *queue)
     
     input[strcspn(input, "\n")] = '\0';
     
-    if (network_send_message(queue, "current_user", input) != 0)
-    {
-        fprintf(stderr, "Failed to send message\n");
-    }
+    return input;
 }
 
 void setCursorPosition(int x, int y)

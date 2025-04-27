@@ -1,0 +1,7 @@
+{
+    "C_Cpp.errorSquiggles": "enabledIfIncludesResolve",
+    "files.associations": {
+        "stdlib.h": "c",
+        "model.h": "c"
+    }
+}
