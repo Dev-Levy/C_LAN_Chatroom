@@ -46,8 +46,9 @@ int main(int argc, char *argv[]) {
 
 void cli_init()
 {
+    system("clear");
     printf("You:\n");
-    printf("------------------------------------------");
+    printf("------------------------------------------\n");
 }
 
 // void display_recent_messages() 

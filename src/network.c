@@ -187,9 +187,12 @@ void send_to_all(ChatMessage msg) {
         printf("sent %zd bytes\n",amountWasSent);
     }  
     //save to chardev
-    printf("Chardevfd %d",chardev_FD);
-    if (write(chardev_FD, buffer, strlen(buffer)) < 0) {
-        perror("Failed to store message");
+    printf("Chardevfd %d\n",chardev_FD);
+    if (write(chardev_FD, &buffer, strlen(buffer)) < 0) {
+        
+        printf("%s\n", buffer);
+        perror("Failed to store message\n");
+        printf("The last error message is: %s\n", strerror(errno));
 
     } else {
         printf("Message stored successfully.\n");
