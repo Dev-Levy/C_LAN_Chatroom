@@ -109,7 +109,7 @@ static int dev_release(struct inode *inodep, struct file *filep) {
 static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset) {
     int error_count = 0;
     int bytes_to_copy = 0;
-    char temp_buffer[MAX_MSG_SIZE + 64];
+    char temp_buffer[MAX_MSG_LEN+ 64];
     int i;
     if (mutex_lock_interruptible(&chatDB->lock)) {
         return -ERESTARTSYS;
@@ -123,10 +123,10 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
     
     // Get the message at current offset
     i = *offset;
-    snprintf(temp_buffer, MAX_MSG_SIZE + 64, "[%s] %s: %s\n", 
+    snprintf(temp_buffer, MAX_MSG_LEN + 64, "[%s] %s: %s\n", 
              chatDB->messages[i].timestamp, 
              chatDB->messages[i].sender, 
-             chatDB->messages[i].content);
+             chatDB->messages[i].message);
     
     bytes_to_copy = strlen(temp_buffer);
     if (bytes_to_copy > len) bytes_to_copy = len;
@@ -149,15 +149,15 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
 
 // Device write function - stores new message
 static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offset) {
-    char temp_buffer[MAX_MSG_SIZE + 64] = {0};
-    char msg[MAX_MSG_SIZE] = {0};
+    char temp_buffer[MAX_MSG_LEN + 64] = {0};
+    char msg[MAX_MSG_LEN] = {0};
     char sender[32] = {0};
     char timestamp[20] = {0};
     int scanned;
     
     // Limit message size
-    if (len > MAX_MSG_SIZE + 64) {
-        len = MAX_MSG_SIZE + 64;
+    if (len > MAX_MSG_LEN + 64) {
+        len = MAX_MSG_LEN + 64;
     }
     
     if (copy_from_user(temp_buffer, buffer, len)) {
@@ -187,11 +187,11 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
     // Store the new message
     strncpy(chatDB->messages[chatDB->msg_count].sender, sender, 31);
     strncpy(chatDB->messages[chatDB->msg_count].timestamp, timestamp, 19);
-    strncpy(chatDB->messages[chatDB->msg_count].content, msg, MAX_MSG_SIZE - 1);
+    strncpy(chatDB->messages[chatDB->msg_count].message, msg, MAX_MSG_LEN - 1);
     
     chatDB->messages[chatDB->msg_count].sender[31] = '\0';
     chatDB->messages[chatDB->msg_count].timestamp[19] = '\0';
-    chatDB->messages[chatDB->msg_count].content[MAX_MSG_SIZE - 1] = '\0';
+    chatDB->messages[chatDB->msg_count].message[MAX_MSG_LEN - 1] = '\0';
     
     chatDB->msg_count++;
     

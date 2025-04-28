@@ -2,6 +2,9 @@
     "C_Cpp.errorSquiggles": "enabledIfIncludesResolve",
     "files.associations": {
         "stdlib.h": "c",
-        "model.h": "c"
+        "model.h": "c",
+        "fs.h": "c",
+        "network.h": "c",
+        "main.h": "c"
     }
 }

@@ -1,3 +1,13 @@
 build/
 *.o
+*.ko
+*.o.cmd
+*.mod.cmd
+*.ko.cmd
+*.mod
+*.mod.c
+*.symvers
+*.symvers.cmd
+*.order.cmd
+*.order
 chat_app

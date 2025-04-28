@@ -10,25 +10,11 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <sys/time.h>
+#include "network.h"
 
 #define MAX_CONNECTION_NUM 10
 #define DEVICE_PATH "/dev/chatdb"
-
-#pragma region method signatures
-
-int init_network();
-int createTCPIpv4Socket(void);
-struct sockaddr_in* CreateIPv4Address(char* ip, int port);
-struct AcceptedSocket* acceptIncomingConnection(int serverSocketFD);
-void acceptNewConnectionAndReceiveAndPrintItsData(int serverSocketFD);
-void *receiveAndPrintIncomingData(void *args);
-void *startAcceptingIncomingConnections(void *args);
-void receiveAndPrintIncomingDataOnSeparateThread(struct recvargs* arguments);
-void sendReceivedMessageToTheOtherClients(char *buffer,int socketFD);
-void startAcceptingIncomingConnectionsOnSeparateThread(int serverSocketFD);
-void ConnectToIPs();
-
-#pragma endregion
 
 #pragma region structs
 struct AcceptedSocket
@@ -43,6 +29,27 @@ struct recvargs {
 };
 
 #pragma endregion
+
+#pragma region method signatures
+
+int init_network();
+int init_char_dev();
+void shutdown_network(int FD);
+void shutdown_char_dev(int FD);
+int createTCPIpv4Socket(void);
+struct sockaddr_in* CreateIPv4Address(char* ip, int port);
+struct AcceptedSocket* acceptIncomingConnection(int serverSocketFD);
+void acceptNewConnectionAndReceiveAndPrintItsData(int serverSocketFD);
+void *receiveAndPrintIncomingData(void *args);
+void *startAcceptingIncomingConnections(void *args);
+void receiveAndPrintIncomingDataOnSeparateThread(struct recvargs* arguments);
+void sendReceivedMessageToTheOtherClients(char *buffer,int socketFD);
+void startAcceptingIncomingConnectionsOnSeparateThread(int serverSocketFD);
+void ConnectToIPs();
+
+#pragma endregion
+
+
 
 int server_FD;
 int chardev_FD;
@@ -60,8 +67,11 @@ int accepted_socket_count = 0;
 
 
 void init_app(char* ip) {
+    printf("Started initing network\n");
     server_FD = init_network(ip);
+    printf("Started initing chardev \n");
     chardev_FD = init_char_dev();
+    printf("Init successful\n");
 }
 
 void shutdown_app(){
@@ -69,23 +79,24 @@ void shutdown_app(){
     shutdown_char_dev(chardev_FD);
 }
 
-int main(int argc, char *argv[]) {
+// int main(int argc, char *argv[]) {
 
-    int serverSocketFD = init_network();
+//     char* ip; // hardcode some ip cause idk
+//     int serverSocketFD = init_network(ip);
 
-    if (serverSocketFD == -1) {
-        printf("Error initializing serversocket\n");
-    } else {
-        printf("Server socket initialized\n");
-    }
+//     if (serverSocketFD == -1) {
+//         printf("Error initializing serversocket\n");
+//     } else {
+//         printf("Server socket initialized\n");
+//     }
 
 
-    send_to_all(serverSocketFD);
+    
 
-    shutdown_network(serverSocketFD);
+//     shutdown_network(serverSocketFD);
 
-    return 0;
-}
+//     return 0;
+// }
 
 int init_network(char* ip) {
 
@@ -126,7 +137,17 @@ int init_network(char* ip) {
 }
 
 int init_char_dev(){
-    return open(DEVICE_PATH, O_RDWR);
+    
+    int fd = open(DEVICE_PATH, O_RDWR);
+
+    if (fd == -1) {
+        printf("Failed to open %s: %s\n", DEVICE_PATH, strerror(errno));
+        return -1;
+    }
+
+    // Device opened successfully
+    printf("Device opened with FD = %d\n", fd);
+    return fd;
 }
 
 void shutdown_network(int server_FD) {
@@ -144,18 +165,35 @@ void shutdown_char_dev(int chardev_FD){
     close(chardev_FD);
 }
 
-void send_to_all(char* msg) {
+void send_to_all(ChatMessage msg) {
 
-        for (int i = 0; i < available_IPs_idx; ++i) {
+    char buffer[sizeof(msg.sender)+sizeof(msg.message)+sizeof(msg.timestamp)] = {0};
+    
+    // Format timestamp as YYYY-MM-DD HH:MM:SS
+    //strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", t); can be in main
+    
+    // Format buffer as username:timestamp:message
+    snprintf(buffer, sizeof(buffer), "%s:%s:%s", msg.timestamp, msg.sender, msg.message);
+    
+    
+    for (int i = 0; i < available_IPs_idx; ++i) {
 
         if (available_IPs_sockets[i] == 0)
             continue;
 
         int connectionSocketFD = available_IPs_sockets[i];
-        ssize_t amountWasSent =  send(connectionSocketFD, msg, strlen(msg), 0);
+        ssize_t amountWasSent =  send(connectionSocketFD, buffer, strlen(buffer), 0); //TODO sender+msg+timestamp together
 
         printf("sent %zd bytes\n",amountWasSent);
-    }   
+    }  
+    //save to chardev
+    printf("Chardevfd %d",chardev_FD);
+    if (write(chardev_FD, buffer, strlen(buffer)) < 0) {
+        perror("Failed to store message");
+
+    } else {
+        printf("Message stored successfully.\n");
+    }
 }
 
 void ConnectToIPs(char* own_ip) {
@@ -163,13 +201,11 @@ void ConnectToIPs(char* own_ip) {
 
     for (int i = 1; i < 255; ++i) { //try to connect to everyone
         snprintf(ip, sizeof(ip), "192.168.100.%d", i);
-        
         if (strcmp(ip, own_ip) == 0)
             continue;
         
         int connectionSocketFD = createTCPIpv4Socket();
         struct sockaddr_in *connectionAddress = CreateIPv4Address(ip,50000);
-
         struct timeval timeout;
         timeout.tv_sec = 0;
         timeout.tv_usec = 50000;
@@ -233,7 +269,7 @@ void* startAcceptingIncomingConnections(void *args) {
         char client_ip[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &clientSocket->address.sin_addr, client_ip, sizeof(client_ip));
         bool exist = false;
-        int idxOfFoundUser;
+        //int idxOfFoundUser;
         for (int i = 0; i < available_IPs_idx; ++i) {
             if (strcmp(available_IPs_adresses_in_string[i],client_ip) == 0) {
                 exist = true;
@@ -332,6 +368,7 @@ void* receiveAndPrintIncomingData(void *args) {
         }
     }
     close(socketFD);
+    return;
 }
 
 int createTCPIpv4Socket(void) {

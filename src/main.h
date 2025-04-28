@@ -4,8 +4,8 @@
 #include "network.h"
 
 void cli_init();
-void display_recent_messages(MessageQueue* queue);
-void read_and_send_message(MessageQueue *queue);
+void display_recent_messages();
+void read_message(char* input);
 void setCursorPosition(int x, int y);
 
 #endif

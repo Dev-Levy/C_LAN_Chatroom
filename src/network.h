@@ -4,8 +4,8 @@
 #include "model.h"
 
 
-void init_app();
-void send_to_all(char* msg);
+void init_app(char* ip);
+void send_to_all(ChatMessage msg);
 
 //getter
 void shutdown_network(int serverSocketFD);

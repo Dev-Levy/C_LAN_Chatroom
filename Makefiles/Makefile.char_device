@@ -1,0 +1,30 @@
+# Makefile for char_device kernel module
+
+# Define source and object paths
+SRC_DIR := ../src
+BUILD_DIR := ../build/char_device
+
+# Module name
+MODULE_NAME := char_device
+
+# Source files
+obj-m += $(MODULE_NAME).o
+#$(MODULE_NAME)-objs := $(SRC_DIR)/char_device.c
+
+# Create build directory if it doesn't exist
+#$(shell mkdir -p $(BUILD_DIR))
+
+all:
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD)/$(BUILD_DIR) src=$(SRC_DIR) modules
+
+clean:
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD)/$(BUILD_DIR) clean
+	rm -rf $(BUILD_DIR)
+
+install:
+	make -C /lib/modules/$(shell uname -r)/build M=$(PWD)/$(BUILD_DIR) modules_install
+	depmod -a
+
+uninstall:
+	rm -f /lib/modules/$(shell uname -r)/extra/$(MODULE_NAME).ko
+	depmod -a
