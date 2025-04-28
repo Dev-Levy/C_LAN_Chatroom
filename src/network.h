@@ -7,7 +7,7 @@
 void init_app(char* ip);
 void send_to_all(ChatMessage msg);
 
-//getter
+ChatMessage* network_get_recent_messages();
 void shutdown_network(int serverSocketFD);
 
 

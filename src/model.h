@@ -2,6 +2,7 @@
 #define MAX_SENDER_LEN 32
 #define MAX_MSG_LEN 1024
 #define TIMESTAMP_SIZE 20
+#define MAX_SENT_MESS 30
 
 typedef struct {
     char sender[MAX_SENDER_LEN];

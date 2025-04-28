@@ -1,30 +1,41 @@
 # Makefile for char_device kernel module
 
-# Define source and object paths
+# Define paths
 SRC_DIR := ../src
-BUILD_DIR := ../build/char_device
+BUILD_DIR := ../build/char_device/
+KERNEL_DIR := /lib/modules/$(shell uname -r)/build
+PWD := $(shell pwd)
 
-# Module name
-MODULE_NAME := char_device
+# Create build directory
+$(shell mkdir -p $(BUILD_DIR))
 
-# Source files
-obj-m += $(MODULE_NAME).o
-#$(MODULE_NAME)-objs := $(SRC_DIR)/char_device.c
-
-# Create build directory if it doesn't exist
-#$(shell mkdir -p $(BUILD_DIR))
+# We'll create a temporary Makefile in the build directory
+define KBUILD_CONTENT
+obj-m := char_device.o
+all:
+	cp $(PWD)/$(SRC_DIR)/char_device.c ./
+	cp $(PWD)/$(SRC_DIR)/char_device.h ./
+	cp $(PWD)/$(SRC_DIR)/model.h ./
+	$(MAKE) -C $(KERNEL_DIR) M=$(PWD)/$(BUILD_DIR) modules
+clean:
+	$(MAKE) -C $(KERNEL_DIR) M=$(PWD)/$(BUILD_DIR) clean
+endef
+export KBUILD_CONTENT
 
 all:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD)/$(BUILD_DIR) src=$(SRC_DIR) modules
+	@echo "$$KBUILD_CONTENT" > $(BUILD_DIR)/Makefile
+	$(MAKE) -C $(BUILD_DIR)
 
 clean:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD)/$(BUILD_DIR) clean
-	rm -rf $(BUILD_DIR)
+	$(MAKE) -C $(BUILD_DIR) clean || true
+	rm -r $(BUILD_DIR)
 
 install:
-	make -C /lib/modules/$(shell uname -r)/build M=$(PWD)/$(BUILD_DIR) modules_install
+	$(MAKE) -C $(KERNEL_DIR) M=$(PWD)/$(BUILD_DIR) modules_install
 	depmod -a
 
 uninstall:
-	rm -f /lib/modules/$(shell uname -r)/extra/$(MODULE_NAME).ko
+	rm -f /lib/modules/$(shell uname -r)/extra/char_device.ko
 	depmod -a
+
+.PHONY: all clean install uninstall

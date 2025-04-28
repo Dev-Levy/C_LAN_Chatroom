@@ -150,7 +150,57 @@ int init_char_dev(){
     return fd;
 }
 
-void shutdown_network(int server_FD) {
+// Function to read and deserialize recent messages
+ChatMessage* network_get_recent_messages(int *out_count)
+{
+    static ChatMessage messages[MAX_SENT_MESS];
+    char buffer[512]; // Temporary read buffer
+    ssize_t bytes_read;
+    int i = 0;
+    off_t pos = 0;
+
+    // Move to the beginning of the device
+    lseek(chardev_FD, pos, SEEK_SET);
+
+    printf("\n----- Chat Messages -----\n");
+
+    while (i < MAX_SENT_MESS && (bytes_read = read(chardev_FD, buffer, sizeof(buffer) - 1)) > 0) {
+        buffer[bytes_read] = '\0';  // Null-terminate
+
+        // Example: assume the buffer contains a **single line** like:
+        // "timestamp sender message"
+        // For example: "1714324440 Alice Hello, world!"
+
+        char *token = strtok(buffer, " ");
+        if (token == NULL) break;
+
+        // Copy timestamp as a string
+        strncpy(messages[i].timestamp, token, TIMESTAMP_SIZE - 1); // replace 30 with define
+        messages[i].timestamp[30 - 1] = '\0'; // Null-terminate
+
+        token = strtok(NULL, " ");
+        if (token == NULL) break;
+        strncpy(messages[i].sender, token, MAX_SENDER_LEN - 1);
+        messages[i].sender[MAX_SENDER_LEN - 1] = '\0'; // Null-terminate
+
+        token = strtok(NULL, "\n");
+        if (token == NULL) break;
+        strncpy(messages[i].message, token, MAX_MSG_LEN - 1);
+        messages[i].message[MAX_MSG_LEN - 1] = '\0'; // Null-terminate
+
+        i++;
+    }
+
+    if (out_count) {
+        *out_count = i;
+    }
+
+    return messages;
+}
+
+
+void shutdown_network(int server_FD)
+{
     shutdown(server_FD,SHUT_RDWR);
 
     close(server_FD);
@@ -169,7 +219,7 @@ void send_to_all(ChatMessage msg) {
 
     
     time_t now = time(NULL);
-    struct tm *t = localtime(&now);
+    struct tm *t = localtime(&now); // technically this is supposed to go to the UI Layer
     // Format timestamp as YYYY-MM-DD HH:MM:SS
     strftime(msg.timestamp, sizeof(msg.timestamp), "%Y-%m-%d %H:%M:%S", t);
     
@@ -179,7 +229,7 @@ void send_to_all(ChatMessage msg) {
     snprintf(buffer, sizeof(buffer), "%s:%s:%s", msg.timestamp, "Mr.Szevasz", msg.message); //hardcoded the username change later
     printf("T: %s\n",msg.timestamp);
     printf("M: %s\n",msg.message);
-    printf("S: %s\n",msg.sender);
+    printf("S: %s\n","Mr.Szevasz");
     
     for (int i = 0; i < available_IPs_idx; ++i) {
 

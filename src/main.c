@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
     printf("Message read: %s\n",message.message);
     // input char helyett ChatMessage lenne
     send_to_all(message);
-
+    display_recent_messages();
     // while (1) 
     // {
     //     display_recent_messages(queue);
@@ -51,25 +51,24 @@ void cli_init()
     printf("------------------------------------------\n");
 }
 
-// void display_recent_messages() 
-// {
-//     size_t count;
-//     const ChatMessage* messages = network_get_recent_messages(/*queue,*/ &count);
-    
-//     setCursorPosition(1,3);
-    
-//     for (size_t i = 0; i < count; i++) 
-//     {
-//         char time_buf[32];
-//         strftime(time_buf, sizeof(time_buf), "%H:%M:%S", localtime(&messages[i].timestamp));
-        
-//         printf("%s[%s] %s: %s\n",
-//             CLEAR_LINE_ES, 
-//             time_buf,
-//             messages[i].sender,
-//             messages[i].message);
-//     }
-// }
+void display_recent_messages()
+{
+    int count = 0;
+    ChatMessage* messages = network_get_recent_messages(&count);
+
+    setCursorPosition(1, 3);
+
+    for (size_t i = 0; i < count; i++) 
+    {
+        // Directly print timestamp as string
+        printf("%s[%s] %s: %s\n",
+            CLEAR_LINE_ES, 
+            messages[i].timestamp,  // Just print timestamp as it is
+            messages[i].sender,
+            messages[i].message);
+    }
+}
+
 
 void read_message(char* input) 
 {    
