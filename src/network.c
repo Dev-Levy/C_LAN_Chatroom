@@ -167,14 +167,19 @@ void shutdown_char_dev(int chardev_FD){
 
 void send_to_all(ChatMessage msg) {
 
-    char buffer[sizeof(msg.sender)+sizeof(msg.message)+sizeof(msg.timestamp)] = {0};
     
+    time_t now = time(NULL);
+    struct tm *t = localtime(&now);
     // Format timestamp as YYYY-MM-DD HH:MM:SS
-    //strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", t); can be in main
+    strftime(msg.timestamp, sizeof(msg.timestamp), "%Y-%m-%d %H:%M:%S", t);
     
+    
+    char buffer[sizeof(msg.sender)+sizeof(msg.message)+sizeof(msg.timestamp)] = {0};
     // Format buffer as username:timestamp:message
-    snprintf(buffer, sizeof(buffer), "%s:%s:%s", msg.timestamp, msg.sender, msg.message);
-    
+    snprintf(buffer, sizeof(buffer), "%s:%s:%s", msg.timestamp, "Mr.Szevasz", msg.message); //hardcoded the username change later
+    printf("T: %s\n",msg.timestamp);
+    printf("M: %s\n",msg.message);
+    printf("S: %s\n",msg.sender);
     
     for (int i = 0; i < available_IPs_idx; ++i) {
 

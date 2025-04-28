@@ -149,7 +149,7 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
 
 // Device write function - stores new message
 static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offset) {
-    char temp_buffer[MAX_MSG_LEN + 64] = {0};
+    char temp_buffer[MAX_MSG_LEN + 64] = {0}; 
     char msg[MAX_MSG_LEN] = {0};
     char sender[32] = {0};
     char timestamp[20] = {0};
@@ -165,6 +165,9 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
         return -EFAULT;
     }
     
+    
+
+
     // Parse input format: "sender:timestamp:message"
     scanned = sscanf(temp_buffer, "%31[^:]:%19[^:]:%255[^\n]", sender, timestamp, msg);
     if (scanned != 3) {
