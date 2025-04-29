@@ -2,6 +2,10 @@
 
 sudo apt update
 
+sudo apt install gcc
+
+sudo apt-get install build-essential
+
 sudo apt-get install linux-headers-$(uname -r)
 
 # Get the directory where the script is located

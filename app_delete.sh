@@ -1,7 +1,6 @@
 #!/bin/sh
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-
 # Change directory into build/char_device
 cd "$SCRIPT_DIR/build/char_device/" || exit 1
 
