@@ -13,7 +13,7 @@
 
 int main(int argc, char *argv[]) {
     printf("Program name: %s\n", argv[0]);
-    
+
     if (argc == 1) {
         printf("No additional arguments provided.\n");
     } else {
@@ -29,11 +29,13 @@ int main(int argc, char *argv[]) {
     cli_init();
     //cli setup
     ChatMessage message;
-    read_message(message.message);
-    printf("Message read: %s\n",message.message);
-    // input char helyett ChatMessage lenne
-    send_to_all(message);
-    display_recent_messages();
+    while (1) {
+        read_message(message.message);
+        printf("Message read: %s\n",message.message);
+        //input char helyett ChatMessage lenne
+        send_to_all(message);
+        display_recent_messages();
+    }
     // while (1) 
     // {
     //     display_recent_messages(queue);

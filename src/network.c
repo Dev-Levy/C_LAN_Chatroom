@@ -13,6 +13,8 @@
 #include <sys/time.h>
 #include "network.h"
 
+#include "main.h"
+
 #define MAX_CONNECTION_NUM 10
 #define DEVICE_PATH "/dev/chatdb"
 
@@ -278,6 +280,7 @@ void ConnectToIPs(char* own_ip) {
         if(result == 0) {
             printf("connection was successful\n");
             char *copyip = strdup(ip);
+            printf("%s",copyip);
             bool exist = false;
             for (int i = 0; i < available_IPs_idx; ++i) {
                 if (strcmp(available_IPs_adresses_in_string[i],copyip) == 0) {
@@ -313,19 +316,21 @@ void ConnectToIPs(char* own_ip) {
 void startAcceptingIncomingConnectionsOnSeparateThread(int serverSocketFD) {
 
     pthread_t id;
-    pthread_create(&id,NULL,startAcceptingIncomingConnections,&serverSocketFD);
+    int *socketFDPointer = malloc(sizeof(int));
+    *socketFDPointer = serverSocketFD; //had to malloc because the thread starts slowv
+    pthread_create(&id,NULL,startAcceptingIncomingConnections,socketFDPointer);
 }
 
 void* startAcceptingIncomingConnections(void *args) {
     //int connectedSocketFD;
     //struct sockaddr_in *connectedSocketAddress;
     int serverSocketFD = *(int *)args;
-
     while(true)
     {
         struct AcceptedSocket* clientSocket  = acceptIncomingConnection(serverSocketFD);
         char client_ip[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &clientSocket->address.sin_addr, client_ip, sizeof(client_ip));
+        printf("Accepted:%s\n",client_ip);
         bool exist = false;
         //int idxOfFoundUser;
         for (int i = 0; i < available_IPs_idx; ++i) {
@@ -410,7 +415,17 @@ void* receiveAndPrintIncomingData(void *args) {
         if(amountReceived>0)
         {
             buffer[amountReceived] = 0; //if its successful we write it out
-            printf("%s\n",buffer); //chardevice
+            printf("Chardevfd %d\n",chardev_FD);
+            if (write(chardev_FD, &buffer, strlen(buffer)) < 0) {
+
+                printf("%s\n", buffer);
+                perror("Failed to store message\n");
+                printf("The last error message is: %s\n", strerror(errno));
+
+            } else {
+                printf("Message stored successfully.\n");
+                display_recent_messages();
+            }
         }
 
         if(amountReceived==0) //here we detect a disconnect
