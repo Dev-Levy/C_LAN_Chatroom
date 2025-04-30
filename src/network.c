@@ -155,7 +155,7 @@ int init_char_dev(){
 // Function to read and deserialize recent messages
 ChatMessage* network_get_recent_messages(int *out_count)
 {
-    static ChatMessage messages[MAX_SENT_MESS];
+    static ChatMessage messages[MAX_MESSAGES];
     char buffer[512]; // Temporary read buffer
     ssize_t bytes_read;
     int i = 0;
@@ -166,7 +166,7 @@ ChatMessage* network_get_recent_messages(int *out_count)
 
     printf("\n----- Chat Messages -----\n");
 
-    while (i < MAX_SENT_MESS && (bytes_read = read(chardev_FD, buffer, sizeof(buffer) - 1)) > 0) {
+    while (i < MAX_MESSAGES && (bytes_read = read(chardev_FD, buffer, sizeof(buffer) - 1)) > 0) {
         buffer[bytes_read] = '\0';  // Null-terminate
 
         // Example: assume the buffer contains a **single line** like:

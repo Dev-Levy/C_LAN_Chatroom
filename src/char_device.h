@@ -15,7 +15,7 @@
  
 #define DEVICE_NAME "chatdb"
 #define CLASS_NAME "chat"
-#define MAX_MESSAGES 128
+
 
 typedef struct {
     ChatMessage messages[MAX_MESSAGES];

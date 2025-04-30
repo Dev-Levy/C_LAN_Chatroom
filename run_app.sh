@@ -6,4 +6,4 @@ sudo insmod char_device.ko
 
 cd "$SCRIPT_DIR/build/app/" || exit 1
 
-sudo ./chat_app 192.168.110
+sudo ./chat_app $(hostname -I)
