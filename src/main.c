@@ -51,12 +51,18 @@ void cli_init()
     system("clear");
     printf("You:\n");
     printf("------------------------------------------\n");
+    setCursorPosition(0, 25);
+    printf("------------------------------------------\n");
 }
 
 void display_recent_messages()
 {
-    int count = 0;
-    ChatMessage* messages = network_get_recent_messages(&count);
+    int count = 20;
+    int num_of_msgs = get_count();
+    ChatMessage* messages = network_get_messages();
+    //ide kell a DB-ből a msg_count
+    //utolsó 20 -> messages[msg_count-20]
+
 
     setCursorPosition(1, 3);
 
@@ -69,6 +75,8 @@ void display_recent_messages()
             messages[i].sender,
             messages[i].message);
     }
+
+    //fájlba mentés
 }
 
 

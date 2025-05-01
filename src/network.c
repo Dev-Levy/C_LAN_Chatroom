@@ -56,6 +56,7 @@ void ConnectToIPs();
 int server_FD;
 int chardev_FD;
 ChatMessage messages[MAX_MESSAGES];
+int msg_counter = 0;
 
 //ennek kéne struct
 int available_IPs_sockets[MAX_CONNECTION_NUM];
@@ -68,6 +69,10 @@ int disconnected_sockets_index;
 
 int accepted_socket_count = 0;
 
+
+int get_count(){
+    return msg_counter;
+}
 
 void init_app(char* ip) {
     printf("Started initing network\n");
@@ -189,7 +194,7 @@ void send_to_all(ChatMessage msg) {
 }
 
 // Function to read and deserialize recent messages
-ChatMessage* network_get_recent_messages(int count)
+ChatMessage* network_get_messages()
 {
     char msgs[MAX_MESSAGES * sizeof(ChatMessage)];
     // Move to the beginning of the device
@@ -216,6 +221,8 @@ ChatMessage* network_get_recent_messages(int count)
             if (token == NULL) break;
             strncpy(messages[i].message, token, MAX_MSG_LEN);
             messages[i].message[MAX_MSG_LEN] = '\0'; // Null-terminate
+
+            msg_counter++;
         }
         else{
             break;
