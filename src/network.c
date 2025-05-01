@@ -196,26 +196,30 @@ ChatMessage* network_get_recent_messages(int count)
     int pos = 0;
     lseek(chardev_FD, pos, SEEK_SET);
 
-    read_all(chardev_FD, msgs, sizeof(ChatMessage));
-
     for (size_t i = 0; i < MAX_MESSAGES; i++)
     {
-        char *token = strtok(msgs[i], " ");
-        if (token == NULL) break;
-        
-        // Copy timestamp as a string
-        strncpy(messages[i].timestamp, token, TIMESTAMP_SIZE);
-        messages[i].timestamp[TIMESTAMP_SIZE] = '\0'; // Null-terminate
-        
-        token = strtok(NULL, " ");
-        if (token == NULL) break;
-        strncpy(messages[i].sender, token, MAX_SENDER_LEN);
-        messages[i].sender[MAX_SENDER_LEN] = '\0'; // Null-terminate
-
-        token = strtok(NULL, "\n");
-        if (token == NULL) break;
-        strncpy(messages[i].message, token, MAX_MSG_LEN);
-        messages[i].message[MAX_MSG_LEN] = '\0'; // Null-terminate
+        if (read(chardev_FD, msgs[i], sizeof(ChatMessage)))
+        {
+            char *token = strtok(msgs[i], " ");
+            if (token == NULL) break;
+            
+            // Copy timestamp as a string
+            strncpy(messages[i].timestamp, token, TIMESTAMP_SIZE);
+            messages[i].timestamp[TIMESTAMP_SIZE] = '\0'; // Null-terminate
+            
+            token = strtok(NULL, " ");
+            if (token == NULL) break;
+            strncpy(messages[i].sender, token, MAX_SENDER_LEN);
+            messages[i].sender[MAX_SENDER_LEN] = '\0'; // Null-terminate
+    
+            token = strtok(NULL, "\n");
+            if (token == NULL) break;
+            strncpy(messages[i].message, token, MAX_MSG_LEN);
+            messages[i].message[MAX_MSG_LEN] = '\0'; // Null-terminate
+        }
+        else{
+            break;
+        }
     }
     return messages;
 }

@@ -147,34 +147,6 @@ static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *of
     //POTENTIAL MAJOR ISSUE: During my testing if you send a message it stores the data and you can read it, however if you want to read it again the whole message back log empties
 }
 
-static void dev_read_all(struct file* filep, char** all_msgs, size_t msg_len) {
-    int error_count = 0;
-    int bytes_to_copy = 0;
-    char temp_buffer[MAX_MSG_LEN + MAX_SENDER_LEN + TIMESTAMP_SIZE];
-
-    if (mutex_lock_interruptible(&chatDB->lock)) {
-        return -ERESTARTSYS;
-    }
-    
-    for (size_t i = 0; i < MAX_MESSAGES; i++)
-    {
-        snprintf(temp_buffer, MAX_MSG_LEN + MAX_SENDER_LEN + TIMESTAMP_SIZE, "[%s] %s: %s\n", 
-            chatDB->messages[i].timestamp, 
-            chatDB->messages[i].sender, 
-            chatDB->messages[i].message);
-
-        error_count = copy_to_user(all_msgs[i], temp_buffer, bytes_to_copy);
-        if (error_count) {
-            mutex_unlock(&chatDB->lock);
-            printk(KERN_INFO "ChatDB: Failed to send %d characters to user\n", error_count);
-            return -EFAULT;
-        }
-    }
-    mutex_unlock(&chatDB->lock);
-    printk(KERN_INFO "Hello, you just read something\n");
-
-    //POTENTIAL MAJOR ISSUE: During my testing if you send a message it stores the data and you can read it, however if you want to read it again the whole message back log empties
-}
 
 // Device write function - stores new message
 static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offset) {
