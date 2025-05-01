@@ -203,8 +203,6 @@ ChatMessage* network_get_recent_messages(int count)
         char *token = strtok(msgs[i], " ");
         if (token == NULL) break;
         
-        messages[i] = malloc(sizeof(ChatMessage));
-        
         // Copy timestamp as a string
         strncpy(messages[i].timestamp, token, TIMESTAMP_SIZE);
         messages[i].timestamp[TIMESTAMP_SIZE] = '\0'; // Null-terminate
