@@ -189,10 +189,11 @@ void send_to_all(ChatMessage msg) {
 }
 
 // Function to read and deserialize recent messages
-char** network_get_recent_messages(int count)
+ChatMessage* network_get_recent_messages(int count)
 {
-    char msgs[MAX_MESSAGES * sizeof(ChatMessage)]
+    char msgs[MAX_MESSAGES * sizeof(ChatMessage)];
     // Move to the beginning of the device
+    int pos = 0;
     lseek(chardev_FD, pos, SEEK_SET);
 
     read_all(chardev_FD, msgs, sizeof(ChatMessage));
@@ -202,7 +203,7 @@ char** network_get_recent_messages(int count)
         char *token = strtok(msgs[i], " ");
         if (token == NULL) break;
         
-        messages[i] = malloc(sizeof(ChatMessage))
+        messages[i] = malloc(sizeof(ChatMessage));
         
         // Copy timestamp as a string
         strncpy(messages[i].timestamp, token, TIMESTAMP_SIZE);
