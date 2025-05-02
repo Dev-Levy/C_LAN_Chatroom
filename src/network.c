@@ -281,7 +281,7 @@ void ConnectToIPs(char* own_ip) {
         if(result == 0) {
             printf("connection was successful\n");
             char *copyip = strdup(ip);
-            printf("%s",copyip);
+            printf("%s\n",copyip);
             bool exist = false;
             for (int i = 0; i < available_IPs_idx; ++i) {
                 if (strcmp(available_IPs_adresses_in_string[i],copyip) == 0) {
@@ -342,7 +342,9 @@ void* startAcceptingIncomingConnections(void *args) {
             if (disconnected_sockets_index > 0) {
                 int index = disconnected_socket_indexes[disconnected_sockets_index-1];
                 available_IPs_sockets[index] = clientSocket->acceptedSocketFD;
-                available_IPs_adresses[index] = &clientSocket->address;
+                available_IPs_adresses[index] = malloc(sizeof(struct sockaddr_in));
+                memcpy(available_IPs_adresses[index], &clientSocket->address, sizeof(struct sockaddr_in));
+                //available_IPs_adresses[index] = &clientSocket->address;
                 available_IPs_adresses_in_string[index] = strdup(client_ip);
                 disconnected_sockets_index--;
                 accepted_socket_count++;
@@ -358,7 +360,9 @@ void* startAcceptingIncomingConnections(void *args) {
                 receiveAndPrintIncomingDataOnSeparateThread(recvargs);
             } else {
                 available_IPs_sockets[available_IPs_idx] = clientSocket->acceptedSocketFD;
-                available_IPs_adresses[available_IPs_idx] = &clientSocket->address;
+                available_IPs_adresses[available_IPs_idx] = malloc(sizeof(struct sockaddr_in));
+                memcpy(available_IPs_adresses[available_IPs_idx], &clientSocket->address, sizeof(struct sockaddr_in));
+                //available_IPs_adresses[available_IPs_idx] = &clientSocket->address;
                 available_IPs_adresses_in_string[available_IPs_idx] = strdup(client_ip);
                 available_IPs_idx++;
                 accepted_socket_count++;
