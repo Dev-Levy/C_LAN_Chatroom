@@ -10,7 +10,6 @@
 
 #define MSG_BUFFER_SIZE 20
 #define MSG_SIZE 1024
-#define STOP_COMMAND "stop"
 
 #define CLEAR_LINE "\33[2K\r"
 #define CLEAR_SCREEN "\33[2J"
@@ -48,18 +47,22 @@ int main(int argc, char *argv[]) {
     cli_init();
     
     display_recent_messages();
-    if(input_available())
-        read_message(message.message);
+    sprintf(message.message, "nope");
+    read_message(message.message);
     
     int flag;
     while (strcmp(message.message, "exit") != 0) {
         
-        send_to_all(message);
         display_recent_messages();
+        
+        if (strcmp(message.message, "nope") != 0)
+            send_to_all(message);
+
         flag = get_flag();
         display_user_info(flag);
-        if(input_available())
-            read_message(message.message);
+        
+        sprintf(message.message, "nope");
+        read_message(message.message);
     }
 
     int endline = get_count() > MSG_BUFFER_SIZE ? 29 : (get_count() + 9);
@@ -90,12 +93,15 @@ void read_message(char* input) {
     printf(CLEAR_LINE);
     printf("%sYou > %s", BOLD, NORMAL);
     fflush(stdout);
-    
-    if (fgets(input, MAX_MSG_LEN, stdin) == NULL) {
-        perror("Error reading input");
-        return;
+    if (input_available())
+    {
+        if (fgets(input, MAX_MSG_LEN, stdin) == NULL) {
+            perror("Error reading input");
+            return;
+        }
+        input[strcspn(input, "\n")] = '\0';
     }
-    input[strcspn(input, "\n")] = '\0';
+    
 }
 
 void display_recent_messages() {
@@ -123,6 +129,7 @@ void display_recent_messages() {
     }
 
     fflush(stdout);
+    usleep(100000); //100ms
 }
 
 void display_user_info(int flag){
@@ -138,7 +145,7 @@ void display_user_info(int flag){
             break;
         }
 
-    setCursorPosition(3, 15);
+    setCursorPosition(23, 3);
     printf("%d", get_accepted_count());
 }
 
