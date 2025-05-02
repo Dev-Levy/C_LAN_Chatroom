@@ -85,21 +85,15 @@ void cli_init()
 
 void read_message(char* input) {
 
-    setCursorPosition(7, 7);
-
-    // if (input_available())
-    // {
-        printf(CLEAR_LINE);
-        printf("%sYou > %s", BOLD, NORMAL);
-        fflush(stdout);
-     
-        if (fgets(input, MAX_MSG_LEN, stdin) == NULL) {
-            perror("Error reading input");
-            return;
-        }
-        input[strcspn(input, "\n")] = '\0';
-    // }
+    printf(CLEAR_LINE);
+    printf("%sYou > %s", BOLD, NORMAL);
+    fflush(stdout);
     
+    if (fgets(input, MAX_MSG_LEN, stdin) == NULL) {
+        perror("Error reading input");
+        return;
+    }
+    input[strcspn(input, "\n")] = '\0';
 }
 
 void display_recent_messages() {
@@ -127,6 +121,8 @@ void display_recent_messages() {
     }
 
     fflush(stdout);
+
+    setCursorPosition(7,7);
 }
 
 void display_user_info(int flag){
