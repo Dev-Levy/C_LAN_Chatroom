@@ -48,11 +48,13 @@ int main(int argc, char *argv[]) {
     display_recent_messages();
     read_message(message.message);
     
+    int* flag;
     while (strcmp(message.message, "exit") != 0) {
         
         send_to_all(message);
         display_recent_messages();
-        display_user_info(0);
+        get_flag(flag);
+        display_user_info(flag);
         read_message(message.message);
     }
 
@@ -70,7 +72,7 @@ void cli_init()
     // Header
     printf(ASCII_LINE);
     printf("### 'Simple' Chat Application\n");
-    printf("###  Connected Users: %d\n", get_accepted_count());
+    printf("###  Connected Users: \n");
     printf(ASCII_LINE);
     printf("%s%-9s | %-15s | %-20s%s\n", BOLD, "Timestamp", "Sender", "Message", NORMAL);
     printf(ASCII_LINE);
@@ -121,6 +123,9 @@ void display_recent_messages() {
 }
 
 void display_user_info(int flag){
+    
+    setCursorPosition(3, 15);
+    printf(get_accepted_count());
     
     switch (flag) {
         case 1:

@@ -8,6 +8,8 @@ int get_accepted_count();
 
 void init_app(char* ip);
 void send_to_all(ChatMessage msg);
+void get_flag(int* flag);
+
 
 ChatMessage* network_get_messages();
 void shutdown_network(int serverSocketFD);

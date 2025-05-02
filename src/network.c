@@ -58,6 +58,7 @@ int chardev_FD;
 ChatMessage messages[MAX_MESSAGES];
 int msg_counter = 0;
 int init = false;
+int flag;
 
 //ennek kéne struct
 int available_IPs_sockets[MAX_CONNECTION_NUM];
@@ -76,6 +77,9 @@ int get_count(){
 }
 int get_accepted_count(){
     return accepted_socket_count;
+}
+void get_flag(int* out_flag){
+    out_flag = flag;
 }
 
 void init_app(char* ip) {
@@ -425,14 +429,9 @@ void* receiveAndPrintIncomingData(void *args) {
             buffer[amountReceived] = 0; //if its successful we write it out
             printf("Chardevfd %d\n",chardev_FD);
             if (write(chardev_FD, &buffer, strlen(buffer)) < 0) {
-
-                printf("%s\n", buffer);
                 perror("Failed to store message\n");
-                printf("The last error message is: %s\n", strerror(errno));
-
             } else {
-                printf("Message stored successfully.\n");
-                display_recent_messages(0);
+                flag = 0;
             }
         }
 
@@ -446,7 +445,7 @@ void* receiveAndPrintIncomingData(void *args) {
             available_IPs_adresses[socketIndex] = 0;
             disconnected_socket_indexes[disconnected_sockets_index] = socketIndex;
             disconnected_sockets_index++;
-            display_recent_messages(2);
+            flag = 2;
             break;
         }
     }
