@@ -1,3 +1,6 @@
+#ifdef TIMESTAMP_SIZE
+#undef TIMESTAMP_SIZE
+#endif
 
 #define MAX_SENDER_LEN 32
 #define MAX_MSG_LEN 512

@@ -42,8 +42,8 @@ int createTCPIpv4Socket(void);
 struct sockaddr_in* CreateIPv4Address(char* ip, int port);
 struct AcceptedSocket* acceptIncomingConnection(int serverSocketFD);
 void acceptNewConnectionAndReceiveAndPrintItsData(int serverSocketFD);
-void *receiveAndPrintIncomingData(void *args);
-void *startAcceptingIncomingConnections(void *args);
+void* receiveAndPrintIncomingData(void *args);
+void* startAcceptingIncomingConnections(void *args);
 void receiveAndPrintIncomingDataOnSeparateThread(struct recvargs* arguments);
 void sendReceivedMessageToTheOtherClients(char *buffer,int socketFD);
 void startAcceptingIncomingConnectionsOnSeparateThread(int serverSocketFD);
@@ -170,7 +170,7 @@ void send_to_all(ChatMessage msg) {
     strftime(msg.timestamp, sizeof(msg.timestamp), "%Y-%m-%d %H:%M:%S", t);
     
     // Format buffer as "timestamp|sender|message"
-    char buffer[MAX_MSG_LEN + 64];
+    char buffer[TIMESTAMP_SIZE + MAX_SENDER_LEN + MAX_MSG_LEN];
     snprintf(buffer, sizeof(buffer), "TIMESTAMP=%s|SENDER=%s|MESSAGE=%s",
              msg.timestamp,
              msg.sender,
@@ -182,37 +182,19 @@ void send_to_all(ChatMessage msg) {
             continue;
 
         int connectionSocketFD = available_IPs_sockets[i];
-        ssize_t amountWasSent =  send(connectionSocketFD, buffer, strlen(buffer), 0); //TODO sender+msg+timestamp together
+        ssize_t amountWasSent =  send(connectionSocketFD, buffer, strlen(buffer), 0);
 
         printf("sent %zd bytes\n",amountWasSent);
     }  
     //save to chardev
     if (write(chardev_FD, &buffer, strlen(buffer)) < 0) {
         perror("Failed to store message");
-    } else {
-        display_recent_messages(0);  // Immediately refresh display
     }
 }
 
-bool has_messages(void) {
-    // Save current position
-    off_t current_pos = lseek(chardev_FD, 0, SEEK_CUR);
-    
-    // Check if device has content
-    off_t end_pos = lseek(chardev_FD, 0, SEEK_END);
-    lseek(chardev_FD, current_pos, SEEK_SET);  // Restore position
-    
-    return (end_pos > 0);
-}
-
-// Function to read and deserialize recent messages
 ChatMessage* network_get_messages() {
     char msg_buffer[MAX_MSG_LEN + 64];
     lseek(chardev_FD, 0, SEEK_SET);  // Rewind to start
-    
-    msg_counter = 0;  // Reset counter
-    
-    int pos = 0;
     
     // Reset message counter
     msg_counter = 0;
@@ -469,7 +451,7 @@ void* receiveAndPrintIncomingData(void *args) {
         }
     }
     close(socketFD);
-    return;
+    return NULL;
 }
 
 int createTCPIpv4Socket(void) {

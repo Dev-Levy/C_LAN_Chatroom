@@ -4,6 +4,7 @@
 #include "model.h"
 
 int get_count();
+int get_accepted_count();
 
 void init_app(char* ip);
 void send_to_all(ChatMessage msg);
