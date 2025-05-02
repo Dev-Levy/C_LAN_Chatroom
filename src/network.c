@@ -350,6 +350,7 @@ void* startAcceptingIncomingConnections(void *args) {
                 accepted_socket_count++;
                 if (init) { //status message
                     flag = 1;
+                    display_recent_messages();
                 }
                 else {
                     printf("Accepted Connection\n");
@@ -368,7 +369,8 @@ void* startAcceptingIncomingConnections(void *args) {
                 accepted_socket_count++;
                 if (init) { //status message
                     flag = 1;
-                }
+                    display_recent_messages();
+                }   
                 else {
                     printf("Accepted Connection\n");
                 }
@@ -436,6 +438,7 @@ void* receiveAndPrintIncomingData(void *args) {
                 perror("Failed to store message\n");
             } else {
                 flag = 0;
+                display_recent_messages();
             }
         }
 
@@ -450,6 +453,7 @@ void* receiveAndPrintIncomingData(void *args) {
             disconnected_socket_indexes[disconnected_sockets_index] = socketIndex;
             disconnected_sockets_index++;
             flag = 2;
+            display_recent_messages();
             break;
         }
     }

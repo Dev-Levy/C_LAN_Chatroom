@@ -52,11 +52,12 @@ int main(int argc, char *argv[]) {
     int flag;
     while (strcmp(message.message, "exit") != 0) {
         
-        usleep(500000); //500ms
-        display_recent_messages();
         send_to_all(message);
+        display_recent_messages();
+
         flag = get_flag();
         display_user_info(flag);
+
         read_message(message.message);
     }
 
@@ -86,8 +87,8 @@ void read_message(char* input) {
 
     setCursorPosition(7, 7);
 
-    if (input_available())
-    {
+    // if (input_available())
+    // {
         printf(CLEAR_LINE);
         printf("%sYou > %s", BOLD, NORMAL);
         fflush(stdout);
@@ -97,7 +98,7 @@ void read_message(char* input) {
             return;
         }
         input[strcspn(input, "\n")] = '\0';
-    }
+    // }
     
 }
 
