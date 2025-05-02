@@ -188,7 +188,7 @@ void send_to_all(ChatMessage msg) {
         int connectionSocketFD = available_IPs_sockets[i];
         ssize_t amountWasSent =  send(connectionSocketFD, buffer, strlen(buffer), 0);
 
-        printf("sent %zd bytes\n",amountWasSent);
+        // printf("sent %zd bytes\n",amountWasSent);
     }  
     //save to chardev
     if (write(chardev_FD, &buffer, strlen(buffer)) < 0) {
@@ -427,7 +427,7 @@ void* receiveAndPrintIncomingData(void *args) {
         if(amountReceived>0)
         {
             buffer[amountReceived] = 0; //if its successful we write it out
-            printf("Chardevfd %d\n",chardev_FD);
+            // printf("Chardevfd %d\n",chardev_FD);
             if (write(chardev_FD, &buffer, strlen(buffer)) < 0) {
                 perror("Failed to store message\n");
             } else {
