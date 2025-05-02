@@ -57,6 +57,7 @@ int server_FD;
 int chardev_FD;
 ChatMessage messages[MAX_MESSAGES];
 int msg_counter = 0;
+int init = false;
 
 //ennek kéne struct
 int available_IPs_sockets[MAX_CONNECTION_NUM];
@@ -72,6 +73,9 @@ int accepted_socket_count = 0;
 
 int get_count(){
     return msg_counter;
+}
+int get_accepted_count(){
+    return accepted_socket_count;
 }
 
 void init_app(char* ip) {
@@ -120,6 +124,8 @@ int init_network(char* ip) {
     ConnectToIPs(ip); //loads ip's in an array
 
     printf("Scouting Done\n");
+
+    init = true;
 
     free(serverAddress); //ez shady de jóvanazúgy
     return serverSocketFD;
@@ -184,7 +190,7 @@ void send_to_all(ChatMessage msg) {
     if (write(chardev_FD, &buffer, strlen(buffer)) < 0) {
         perror("Failed to store message");
     } else {
-        display_recent_messages();  // Immediately refresh display
+        display_recent_messages(0);  // Immediately refresh display
     }
 }
 
@@ -339,7 +345,6 @@ void* startAcceptingIncomingConnections(void *args) {
         struct AcceptedSocket* clientSocket  = acceptIncomingConnection(serverSocketFD);
         char client_ip[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &clientSocket->address.sin_addr, client_ip, sizeof(client_ip));
-        printf("Accepted:%s\n",client_ip);
         bool exist = false;
         //int idxOfFoundUser;
         for (int i = 0; i < available_IPs_idx; ++i) {
@@ -355,6 +360,12 @@ void* startAcceptingIncomingConnections(void *args) {
                 available_IPs_adresses_in_string[index] = strdup(client_ip);
                 disconnected_sockets_index--;
                 accepted_socket_count++;
+                if (init) { //status message
+                    display_recent_messages(1);
+                }
+                else {
+                    printf("Accepted Connection\n");
+                }
                 struct recvargs *recvargs = malloc(sizeof(struct recvargs));
                 recvargs->socketFD = clientSocket->acceptedSocketFD;
                 recvargs->socketIndex = index;
@@ -365,6 +376,12 @@ void* startAcceptingIncomingConnections(void *args) {
                 available_IPs_adresses_in_string[available_IPs_idx] = strdup(client_ip);
                 available_IPs_idx++;
                 accepted_socket_count++;
+                if (init) { //status message
+                    display_recent_messages(1);
+                }
+                else {
+                    printf("Accepted Connection\n");
+                }
                 struct recvargs *recvargs = malloc(sizeof(struct recvargs));
                 recvargs->socketFD = clientSocket->acceptedSocketFD;
                 recvargs->socketIndex = available_IPs_idx-1;
@@ -415,7 +432,7 @@ void* receiveAndPrintIncomingData(void *args) {
     int socketFD = recvargs->socketFD;
     char buffer[1024];
 
-    printf("Socket: %d\n",socketFD);
+    //printf("Socket: %d\n",socketFD);
 
     while (true) //here we want to receive the message of a certain socket
     {
@@ -433,19 +450,21 @@ void* receiveAndPrintIncomingData(void *args) {
 
             } else {
                 printf("Message stored successfully.\n");
-                display_recent_messages();
+                display_recent_messages(0);
             }
         }
 
         if(amountReceived==0) //here we detect a disconnect
         {
-            printf("Someone has disconnected :(\n");
+            //printf("Someone has disconnected :(\n");
             accepted_socket_count--; //deletion from the arrays
-            available_IPs_adresses_in_string[socketIndex] = "";
+            char emptybuffer[16] = "";
+            available_IPs_adresses_in_string[socketIndex] = strdup(emptybuffer);
             available_IPs_sockets[socketIndex] = 0;
             available_IPs_adresses[socketIndex] = 0;
             disconnected_socket_indexes[disconnected_sockets_index] = socketIndex;
             disconnected_sockets_index++;
+            display_recent_messages(2);
             break;
         }
     }

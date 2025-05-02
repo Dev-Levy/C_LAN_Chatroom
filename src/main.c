@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
             break;
         }
         send_to_all(message);
-        display_recent_messages();
+        display_recent_messages(0);
         
     }
     
@@ -65,20 +65,20 @@ void cli_init()
     printf("\033[2J\033[H");  // Clear screen
     
     // Header
-    printf("\033[1;34m=== Chat History (Latest %d) ===\033[0m\n", MSG_BUFFER_SIZE);
+    printf("\033[1;34m=== Chat History (Latest %d) === Connected Users: %d ===\033[0m\n", MSG_BUFFER_SIZE,get_accepted_count());
     printf("\033[1m%-19s | %-11s | Message\033[0m\n", "Timestamp", "Sender");
     printf("------------------------------------------------\n");
 }
 
 // In main.c
 
-void display_recent_messages() {
+void display_recent_messages(int flag) {
 
     cli_init();
 
     // Get and display messages
-    int total = get_count();
     ChatMessage* msgs = network_get_messages();
+    int total = get_count();
     int start = total > MSG_BUFFER_SIZE ? total - MSG_BUFFER_SIZE : 0;
 
     for (int i = start; i < total; i++) {
@@ -97,9 +97,22 @@ void display_recent_messages() {
                msgs[i].sender,
                msgs[i].message);
     }
+    switch (flag) {
+        case 1:
+            printf("A User Connected!!!\n");
+            printf("\033[1;32mYou > \033[0m");
+            break;
+        case 2:
+            printf("A User Disconnected!!!\n");
+            printf("\033[1;32mYou > \033[0m");
+            break;
+        default:
+            printf("\n\033[1;32mYou > \033[0m");
+            break;
 
+    }
     // Input prompt
-    printf("\n\033[1;32mYou > \033[0m");
+
     fflush(stdout);
     //clear_screen();
 }
@@ -121,7 +134,7 @@ void read_message(char* input) {
     input[strcspn(input, "\n")] = '\0';
     
     // After reading, refresh messages
-    display_recent_messages();
+    display_recent_messages(0);
 }
 
 void setCursorPosition(int x, int y)
