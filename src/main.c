@@ -47,21 +47,16 @@ int main(int argc, char *argv[]) {
     cli_init();
     
     display_recent_messages();
-    sprintf(message.message, "nope");
     read_message(message.message);
     
     int flag;
     while (strcmp(message.message, "exit") != 0) {
         
+        usleep(500000); //500ms
         display_recent_messages();
-        
-        if (strcmp(message.message, "nope") != 0)
-            send_to_all(message);
-
+        send_to_all(message);
         flag = get_flag();
         display_user_info(flag);
-        
-        sprintf(message.message, "nope");
         read_message(message.message);
     }
 
@@ -83,18 +78,20 @@ void cli_init()
     printf(ASCII_LINE);
     printf("%s%-9s | %-15s | %-20s%s\n", BOLD, "Timestamp", "Sender", "Message", NORMAL);
     printf(ASCII_LINE);
-    setCursorPosition(1, 8);
+    printf("%sYou > %s\n", BOLD, NORMAL);    
     printf(ASCII_LINE);
 }
 
 void read_message(char* input) {
 
-    setCursorPosition(1, 7);
-    printf(CLEAR_LINE);
-    printf("%sYou > %s", BOLD, NORMAL);
-    fflush(stdout);
+    setCursorPosition(7, 7);
+
     if (input_available())
     {
+        printf(CLEAR_LINE);
+        printf("%sYou > %s", BOLD, NORMAL);
+        fflush(stdout);
+     
         if (fgets(input, MAX_MSG_LEN, stdin) == NULL) {
             perror("Error reading input");
             return;
@@ -129,7 +126,6 @@ void display_recent_messages() {
     }
 
     fflush(stdout);
-    usleep(100000); //100ms
 }
 
 void display_user_info(int flag){
