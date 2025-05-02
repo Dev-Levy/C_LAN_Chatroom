@@ -48,12 +48,12 @@ int main(int argc, char *argv[]) {
     display_recent_messages();
     read_message(message.message);
     
-    int* flag;
+    int flag;
     while (strcmp(message.message, "exit") != 0) {
         
         send_to_all(message);
         display_recent_messages();
-        get_flag(flag);
+        flag = get_flag();
         display_user_info(flag);
         read_message(message.message);
     }
@@ -123,10 +123,7 @@ void display_recent_messages() {
 }
 
 void display_user_info(int flag){
-    
-    setCursorPosition(3, 15);
-    printf(get_accepted_count());
-    
+        
     switch (flag) {
         case 1:
             printf("A User Connected!!!\n");
@@ -134,9 +131,12 @@ void display_user_info(int flag){
         case 2:
             printf("A User Disconnected!!!\n");
             break;
-        default:
+            default:
             break;
-    }
+        }
+
+    setCursorPosition(3, 15);
+    printf("%d", get_accepted_count());
 }
 
 void setCursorPosition(int x, int y)

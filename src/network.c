@@ -78,8 +78,8 @@ int get_count(){
 int get_accepted_count(){
     return accepted_socket_count;
 }
-void get_flag(int* out_flag){
-    out_flag = flag;
+int get_flag(){
+    return flag;
 }
 
 void init_app(char* ip) {
@@ -347,7 +347,7 @@ void* startAcceptingIncomingConnections(void *args) {
                 disconnected_sockets_index--;
                 accepted_socket_count++;
                 if (init) { //status message
-                    display_recent_messages(1);
+                    flag = 1;
                 }
                 else {
                     printf("Accepted Connection\n");
@@ -363,7 +363,7 @@ void* startAcceptingIncomingConnections(void *args) {
                 available_IPs_idx++;
                 accepted_socket_count++;
                 if (init) { //status message
-                    display_recent_messages(1);
+                    flag = 1;
                 }
                 else {
                     printf("Accepted Connection\n");
