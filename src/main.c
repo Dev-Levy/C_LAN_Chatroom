@@ -1,7 +1,9 @@
 #include <stdio.h>
+#include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <sys/select.h>
 
 #include "main.h"
 #include "network.h"
@@ -46,7 +48,8 @@ int main(int argc, char *argv[]) {
     cli_init();
     
     display_recent_messages();
-    read_message(message.message);
+    if(input_available())
+        read_message(message.message);
     
     int flag;
     while (strcmp(message.message, "exit") != 0) {
@@ -55,7 +58,8 @@ int main(int argc, char *argv[]) {
         display_recent_messages();
         flag = get_flag();
         display_user_info(flag);
-        read_message(message.message);
+        if(input_available())
+            read_message(message.message);
     }
 
     int endline = get_count() > MSG_BUFFER_SIZE ? 29 : (get_count() + 9);
@@ -81,7 +85,7 @@ void cli_init()
 }
 
 void read_message(char* input) {
-    
+
     setCursorPosition(1, 7);
     printf(CLEAR_LINE);
     printf("%sYou > %s", BOLD, NORMAL);
@@ -91,7 +95,6 @@ void read_message(char* input) {
         perror("Error reading input");
         return;
     }
-    
     input[strcspn(input, "\n")] = '\0';
 }
 
@@ -137,6 +140,14 @@ void display_user_info(int flag){
 
     setCursorPosition(3, 15);
     printf("%d", get_accepted_count());
+}
+
+int input_available(){
+    struct timeval tv = {0,0};
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(STDIN_FILENO, &fds);
+    return select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv) == 1;
 }
 
 void setCursorPosition(int x, int y)
