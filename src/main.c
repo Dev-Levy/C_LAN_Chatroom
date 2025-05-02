@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 
 #include "main.h"
@@ -12,6 +13,13 @@
 #define CLEAR_LINE_ES "\33[2K\r"
 
 int main(int argc, char *argv[]) {
+    char username[MAX_SENDER_LEN] = {0};
+    char command[10] = {0};
+    printf("Enter your username: ");
+    fgets(username, MAX_SENDER_LEN - 1, stdin);
+    username[strcspn(username, "\n")] = '\0'; // Remove newline
+
+
     printf("Program name: %s\n", argv[0]);
 
     if (argc == 1) {
@@ -26,72 +34,98 @@ int main(int argc, char *argv[]) {
     //NETWORK - server create, bind, listen
     //CHAR DEV - open, create DB
 
+    
     cli_init();
     //cli setup
-    ChatMessage message;
     while (1) {
+        
+        
+        ChatMessage message;
+        strncpy(message.sender, username, MAX_SENDER_LEN);
+        message.sender[MAX_SENDER_LEN] = '\0';
+        
         read_message(message.message);
-        printf("Message read: %s\n",message.message);
-        //input char helyett ChatMessage lenne
+        
+        if (strcmp(message.message, "exit") == 0) {
+            break;
+        }
         send_to_all(message);
         display_recent_messages();
+        
     }
-    // while (1) 
-    // {
-    //     display_recent_messages(queue);
-    //     read_and_send_message(queue);
-    // }
-
-    // network_cleanup(queue);
-    // return 0;
+    
+    shutdown_app();
+    return 0;
 }
 
 void cli_init()
 {
     system("clear");
-    printf("You:\n");
-    printf("------------------------------------------\n");
+    setCursorPosition(0, 3);
+    printf("\033[2J\033[H");  // Clear screen
+    
+    // Header
+    printf("\033[1;34m=== Chat History (Latest %d) ===\033[0m\n", MSG_BUFFER_SIZE);
+    printf("\033[1m%-19s | %-11s | Message\033[0m\n", "Timestamp", "Sender");
+    printf("------------------------------------------------\n");
 }
 
-void display_recent_messages()
-{
-    int count = 0;
-    ChatMessage* messages = network_get_recent_messages(&count);
+// In main.c
 
-    setCursorPosition(1, 3);
+void display_recent_messages() {
 
-    for (size_t i = 0; i < count; i++) 
-    {
-        // Directly print timestamp as string
-        printf("%s[%s] %s: %s\n",
-            CLEAR_LINE_ES, 
-            messages[i].timestamp,  // Just print timestamp as it is
-            messages[i].sender,
-            messages[i].message);
-    }
-}
+    cli_init();
 
+    // Get and display messages
+    int total = get_count();
+    ChatMessage* msgs = network_get_messages();
+    int start = total > MSG_BUFFER_SIZE ? total - MSG_BUFFER_SIZE : 0;
 
-void read_message(char* input) 
-{    
-    
-    
-    setCursorPosition(1,1);
-    printf("%sYou: ", CLEAR_LINE_ES); //clears line and reprints You:
-    
-    if (fgets(input, MAX_MSG_LEN, stdin) == NULL) 
-    {
-        perror("Error reading input");
+    for (int i = start; i < total; i++) {
+        if (strlen(msgs[i].message) == 0) continue;
+        if (i % 2 == 0) {
+            printf("\033[37m");  // Light gray
+        } else {
+            printf("\033[90m");  // Dark gray
+        }
+        char clean_timestamp[20];
+        strncpy(clean_timestamp, msgs[i].timestamp, 19);
+        clean_timestamp[19] = '\0';
         
+        printf("%-19s | %-15s | %s",
+               clean_timestamp,
+               msgs[i].sender,
+               msgs[i].message);
+    }
+
+    // Input prompt
+    printf("\n\033[1;32mYou > \033[0m");
+    fflush(stdout);
+    //clear_screen();
+}
+
+
+void read_message(char* input) {
+    // Clear input line
+    printf("\033[2K\r");  // Clear entire line
+    
+    // Show prompt
+    printf("\033[1;32mYou > \033[0m");
+    fflush(stdout);
+    
+    if (fgets(input, MAX_MSG_LEN, stdin) == NULL) {
+        perror("Error reading input");
         return;
     }
     
     input[strcspn(input, "\n")] = '\0';
     
-    return;
+    // After reading, refresh messages
+    display_recent_messages();
 }
 
 void setCursorPosition(int x, int y)
 {
     printf("\033[%d;%dH", y, x);
 }
+

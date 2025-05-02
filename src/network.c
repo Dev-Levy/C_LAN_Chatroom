@@ -55,6 +55,8 @@ void ConnectToIPs();
 
 int server_FD;
 int chardev_FD;
+ChatMessage messages[MAX_MESSAGES];
+int msg_counter = 0;
 
 //ennek kéne struct
 int available_IPs_sockets[MAX_CONNECTION_NUM];
@@ -68,6 +70,10 @@ int disconnected_sockets_index;
 int accepted_socket_count = 0;
 
 
+int get_count(){
+    return msg_counter;
+}
+
 void init_app(char* ip) {
     printf("Started initing network\n");
     server_FD = init_network(ip);
@@ -80,25 +86,6 @@ void shutdown_app(){
     shutdown_network(server_FD);
     shutdown_char_dev(chardev_FD);
 }
-
-// int main(int argc, char *argv[]) {
-
-//     char* ip; // hardcode some ip cause idk
-//     int serverSocketFD = init_network(ip);
-
-//     if (serverSocketFD == -1) {
-//         printf("Error initializing serversocket\n");
-//     } else {
-//         printf("Server socket initialized\n");
-//     }
-
-
-    
-
-//     shutdown_network(serverSocketFD);
-
-//     return 0;
-// }
 
 int init_network(char* ip) {
 
@@ -152,59 +139,10 @@ int init_char_dev(){
     return fd;
 }
 
-// Function to read and deserialize recent messages
-ChatMessage* network_get_recent_messages(int *out_count)
-{
-    static ChatMessage messages[MAX_MESSAGES];
-    char buffer[512]; // Temporary read buffer
-    ssize_t bytes_read;
-    int i = 0;
-    off_t pos = 0;
-
-    // Move to the beginning of the device
-    lseek(chardev_FD, pos, SEEK_SET);
-
-    printf("\n----- Chat Messages -----\n");
-
-    while (i < MAX_MESSAGES && (bytes_read = read(chardev_FD, buffer, sizeof(buffer) - 1)) > 0) {
-        buffer[bytes_read] = '\0';  // Null-terminate
-
-        // Example: assume the buffer contains a **single line** like:
-        // "timestamp sender message"
-        // For example: "1714324440 Alice Hello, world!"
-
-        char *token = strtok(buffer, " ");
-        if (token == NULL) break;
-
-        // Copy timestamp as a string
-        strncpy(messages[i].timestamp, token, TIMESTAMP_SIZE - 1); // replace 30 with define
-        messages[i].timestamp[30 - 1] = '\0'; // Null-terminate
-
-        token = strtok(NULL, " ");
-        if (token == NULL) break;
-        strncpy(messages[i].sender, token, MAX_SENDER_LEN - 1);
-        messages[i].sender[MAX_SENDER_LEN - 1] = '\0'; // Null-terminate
-
-        token = strtok(NULL, "\n");
-        if (token == NULL) break;
-        strncpy(messages[i].message, token, MAX_MSG_LEN - 1);
-        messages[i].message[MAX_MSG_LEN - 1] = '\0'; // Null-terminate
-
-        i++;
-    }
-
-    if (out_count) {
-        *out_count = i;
-    }
-
-    return messages;
-}
-
-
 void shutdown_network(int server_FD)
 {
     shutdown(server_FD,SHUT_RDWR);
-
+    
     close(server_FD);
     for (int i = 0; i < available_IPs_idx; ++i) {
         close(available_IPs_sockets[i]);
@@ -219,19 +157,18 @@ void shutdown_char_dev(int chardev_FD){
 
 void send_to_all(ChatMessage msg) {
 
-    
     time_t now = time(NULL);
-    struct tm *t = localtime(&now); // technically this is supposed to go to the UI Layer
-    // Format timestamp as YYYY-MM-DD HH:MM:SS
+    struct tm *t = localtime(&now);
+    
+    // Format timestamp in userspace
     strftime(msg.timestamp, sizeof(msg.timestamp), "%Y-%m-%d %H:%M:%S", t);
     
-    
-    char buffer[sizeof(msg.sender)+sizeof(msg.message)+sizeof(msg.timestamp)] = {0};
-    // Format buffer as username:timestamp:message
-    snprintf(buffer, sizeof(buffer), "%s:%s:%s", msg.timestamp, "Mr.Szevasz", msg.message); //hardcoded the username change later
-    printf("T: %s\n",msg.timestamp);
-    printf("M: %s\n",msg.message);
-    printf("S: %s\n","Mr.Szevasz");
+    // Format buffer as "timestamp|sender|message"
+    char buffer[MAX_MSG_LEN + 64];
+    snprintf(buffer, sizeof(buffer), "TIMESTAMP=%s|SENDER=%s|MESSAGE=%s",
+             msg.timestamp,
+             msg.sender,
+             msg.message);
     
     for (int i = 0; i < available_IPs_idx; ++i) {
 
@@ -244,16 +181,88 @@ void send_to_all(ChatMessage msg) {
         printf("sent %zd bytes\n",amountWasSent);
     }  
     //save to chardev
-    printf("Chardevfd %d\n",chardev_FD);
     if (write(chardev_FD, &buffer, strlen(buffer)) < 0) {
-        
-        printf("%s\n", buffer);
-        perror("Failed to store message\n");
-        printf("The last error message is: %s\n", strerror(errno));
-
+        perror("Failed to store message");
     } else {
-        printf("Message stored successfully.\n");
+        display_recent_messages();  // Immediately refresh display
     }
+}
+
+bool has_messages(void) {
+    // Save current position
+    off_t current_pos = lseek(chardev_FD, 0, SEEK_CUR);
+    
+    // Check if device has content
+    off_t end_pos = lseek(chardev_FD, 0, SEEK_END);
+    lseek(chardev_FD, current_pos, SEEK_SET);  // Restore position
+    
+    return (end_pos > 0);
+}
+
+// Function to read and deserialize recent messages
+ChatMessage* network_get_messages() {
+    char msg_buffer[MAX_MSG_LEN + 64];
+    lseek(chardev_FD, 0, SEEK_SET);  // Rewind to start
+    
+    msg_counter = 0;  // Reset counter
+    
+    int pos = 0;
+    
+    // Reset message counter
+    msg_counter = 0;
+    
+    // Seek to beginning and read all messages
+    lseek(chardev_FD, 0, SEEK_SET);
+    
+    while (msg_counter < MAX_MESSAGES) {
+        ssize_t bytes_read = read(chardev_FD, msg_buffer, sizeof(msg_buffer)-1);
+        
+        if (bytes_read <= 0) {
+            break;  // No more messages or error
+        }
+        
+        msg_buffer[bytes_read] = '\0';
+        
+        // Parse each message
+        char *timestamp = strstr(msg_buffer, "TIMESTAMP=");
+        char *sender = strstr(msg_buffer, "SENDER=");
+        char *message = strstr(msg_buffer, "MESSAGE=");
+        
+        if (!timestamp || !sender || !message) {
+            continue;  // Skip invalid format
+        }
+        
+        timestamp += 10;  // Skip "TIMESTAMP="
+        sender += 7;      // Skip "SENDER="
+        message += 8;     // Skip "MESSAGE="
+        
+        // Find delimiters
+        char *timestamp_end = strchr(timestamp, '|');
+        char *sender_end = strchr(sender, '|');
+        
+        if (!timestamp_end || !sender_end) {
+            continue;  // Skip malformed messages
+        }
+        
+        // Null-terminate each field
+        *timestamp_end = '\0';
+        *sender_end = '\0';
+        
+
+        // Store in messages array
+        strncpy(messages[msg_counter].timestamp, timestamp, TIMESTAMP_SIZE-1);
+        strncpy(messages[msg_counter].sender, sender, MAX_SENDER_LEN-1);
+        strncpy(messages[msg_counter].message, message, MAX_MSG_LEN-1);
+        
+        // Ensure null-termination
+        messages[msg_counter].timestamp[TIMESTAMP_SIZE-1] = '\0';
+        messages[msg_counter].sender[MAX_SENDER_LEN-1] = '\0';
+        messages[msg_counter].message[MAX_MSG_LEN-1] = '\0';
+        
+        msg_counter++;
+    }
+    
+    return messages;
 }
 
 void ConnectToIPs(char* own_ip) {

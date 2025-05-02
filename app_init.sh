@@ -1,12 +1,12 @@
 #!/bin/bash
 
-sudo apt update
+#sudo apt update
 
-sudo apt install gcc
+#sudo apt install gcc
 
-sudo apt-get install build-essential
+#sudo apt-get install build-essential
 
-sudo apt-get install linux-headers-$(uname -r)
+#sudo apt-get install linux-headers-$(uname -r)
 
 # Get the directory where the script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

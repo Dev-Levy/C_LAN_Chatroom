@@ -1,6 +1,6 @@
 
 #define MAX_SENDER_LEN 32
-#define MAX_MSG_LEN 1024
+#define MAX_MSG_LEN 512
 #define TIMESTAMP_SIZE 20
 #define MAX_MESSAGES 128
 

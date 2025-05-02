@@ -105,79 +105,87 @@ static int dev_release(struct inode *inodep, struct file *filep) {
     return 0;
 }
 
-// Device read function - returns chat messages to user
-static ssize_t dev_read(struct file *filep, char *buffer, size_t len, loff_t *offset) {
-    int error_count = 0;
+// In char_device.c (kernel module)
+static ssize_t dev_read(struct file *filep, char __user *buffer, size_t len, loff_t *offset) {
+    char temp_buffer[MAX_MSG_LEN + 64] = {0};
     int bytes_to_copy = 0;
-    char temp_buffer[MAX_MSG_LEN+ 64];
-    int i;
-    if (mutex_lock_interruptible(&chatDB->lock)) {
-        return -ERESTARTSYS;
-    }
     
-    // Check if we've already sent all messages
+    if (mutex_lock_interruptible(&chatDB->lock))
+        return -ERESTARTSYS;
+
+    // Check if we've read all messages
     if (*offset >= chatDB->msg_count) {
         mutex_unlock(&chatDB->lock);
-        return 0;
+        return 0;  // EOF
     }
-    
-    // Get the message at current offset
-    i = *offset;
-    snprintf(temp_buffer, MAX_MSG_LEN + 64, "[%s] %s: %s\n", 
-             chatDB->messages[i].timestamp, 
-             chatDB->messages[i].sender, 
-             chatDB->messages[i].message);
-    
+
+    // Format: "TIMESTAMP=2025-05-01 21:53:00|SENDER=Marci|MESSAGE=Na mivan\n"
+    snprintf(temp_buffer, sizeof(temp_buffer), 
+             "TIMESTAMP=%s|SENDER=%s|MESSAGE=%s\n",
+             chatDB->messages[*offset].timestamp,
+             chatDB->messages[*offset].sender,
+             chatDB->messages[*offset].message);
+
     bytes_to_copy = strlen(temp_buffer);
-    if (bytes_to_copy > len) bytes_to_copy = len;
     
-    // Copy to user space
-    error_count = copy_to_user(buffer, temp_buffer, bytes_to_copy);
-    if (error_count) {
+    if (bytes_to_copy > len) {
         mutex_unlock(&chatDB->lock);
-        printk(KERN_INFO "ChatDB: Failed to send %d characters to user\n", error_count);
         return -EFAULT;
     }
-    //asd
-    *offset += 1;  // Move to next message
-    mutex_unlock(&chatDB->lock);
-    printk(KERN_INFO "Hello, you just read something\n");
-    return bytes_to_copy;
 
-    //POTENTIAL MAJOR ISSUE: During my testing if you send a message it stores the data and you can read it, however if you want to read it again the whole message back log empties
+    if (copy_to_user(buffer, temp_buffer, bytes_to_copy)) {
+        mutex_unlock(&chatDB->lock);
+        return -EFAULT;
+    }
+
+    *offset += 1;
+    mutex_unlock(&chatDB->lock);
+    return bytes_to_copy;
 }
+
 
 // Device write function - stores new message
 static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, loff_t *offset) {
     char temp_buffer[MAX_MSG_LEN + 64] = {0}; 
-    char msg[MAX_MSG_LEN] = {0};
-    char sender[32] = {0};
-    char timestamp[20] = {0};
-    int scanned;
+    // char msg[MAX_MSG_LEN] = {0};
+    // char sender[32] = {0};
+    // char timestamp[20] = {0};
+    // int scanned;
     
     // Limit message size
-    if (len > MAX_MSG_LEN + 64) {
-        len = MAX_MSG_LEN + 64;
-    }
-    
-    if (copy_from_user(temp_buffer, buffer, len)) {
+    // if (len > MAX_MSG_LEN + 64) {
+    //     len = MAX_MSG_LEN + 64;
+    // }
+    if (copy_from_user(temp_buffer, buffer, min(len, sizeof(temp_buffer)-1))){
         printk(KERN_INFO "ChatDB: Failed to receive message from user\n");
         return -EFAULT;
     }
-    
-    
 
-
-    // Parse input format: "sender:timestamp:message"
-    scanned = sscanf(temp_buffer, "%31[^:]:%19[^:]:%255[^\n]", sender, timestamp, msg);
-    if (scanned != 3) {
-        printk(KERN_INFO "ChatDB: Invalid message format\n");
-        return -EINVAL;
-    }
-    
     if (mutex_lock_interruptible(&chatDB->lock)) {
         return -ERESTARTSYS;
     }
+    char *timestamp = strstr(temp_buffer, "TIMESTAMP=");
+    char *sender = strstr(temp_buffer, "SENDER=");
+    char *message = strstr(temp_buffer, "MESSAGE=");
+
+    if (!timestamp || !sender || !message)
+        return -EINVAL;
+
+    // Advance pointers past the labels
+    timestamp += 10; // Skip "TIMESTAMP="
+    sender += 7;     // Skip "SENDER="
+    message += 8;    // Skip "MESSAGE="
+
+    // Find delimiters
+    char *timestamp_end = strchr(timestamp, '|');
+    char *sender_end = strchr(sender, '|');
+    
+    if (!timestamp_end || !sender_end)
+        return -EINVAL;
+
+    // Null-terminate each field
+    *timestamp_end = '\0';
+    *sender_end = '\0';
     
     // Check if database is full
     if (chatDB->msg_count >= MAX_MESSAGES) {
@@ -188,12 +196,12 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
     }
     
     // Store the new message
-    strncpy(chatDB->messages[chatDB->msg_count].sender, sender, 31);
-    strncpy(chatDB->messages[chatDB->msg_count].timestamp, timestamp, 19);
-    strncpy(chatDB->messages[chatDB->msg_count].message, msg, MAX_MSG_LEN - 1);
+    strncpy(chatDB->messages[chatDB->msg_count].sender, sender, MAX_SENDER_LEN-1);
+    strncpy(chatDB->messages[chatDB->msg_count].timestamp, timestamp, TIMESTAMP_SIZE-1);
+    strncpy(chatDB->messages[chatDB->msg_count].message, message, MAX_MSG_LEN - 1);
     
-    chatDB->messages[chatDB->msg_count].sender[31] = '\0';
-    chatDB->messages[chatDB->msg_count].timestamp[19] = '\0';
+    chatDB->messages[chatDB->msg_count].sender[MAX_SENDER_LEN-1] = '\0';
+    chatDB->messages[chatDB->msg_count].timestamp[TIMESTAMP_SIZE-1] = '\0';
     chatDB->messages[chatDB->msg_count].message[MAX_MSG_LEN - 1] = '\0';
     
     chatDB->msg_count++;
@@ -203,6 +211,7 @@ static ssize_t dev_write(struct file *filep, const char *buffer, size_t len, lof
     printk(KERN_INFO "ChatDB: Stored message from %s\n", sender);
     return len;
 }
+
 static loff_t dev_llseek(struct file *filep, loff_t offset, int whence)
 {
     loff_t newpos = 0;
