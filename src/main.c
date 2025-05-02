@@ -24,7 +24,7 @@
 
 int main(int argc, char *argv[]) {
     
-    printf(CLEAR_SCREEN MOVE_HOME);
+    system("clear");
     printf("Program name: %s\n", argv[0]);
     
     if (argc == 1) {
@@ -45,6 +45,7 @@ int main(int argc, char *argv[]) {
     
     cli_init();
     
+    display_recent_messages();
     read_message(message.message);
     
     while (strcmp(message.message, "exit") != 0) {
@@ -64,14 +65,14 @@ int main(int argc, char *argv[]) {
 
 void cli_init()
 {
-    printf(CLEAR_SCREEN MOVE_HOME);
+    system("clear");
     
     // Header
     printf(ASCII_LINE);
     printf("### 'Simple' Chat Application\n");
     printf("###  Connected Users: %d\n", get_accepted_count());
     printf(ASCII_LINE);
-    printf("%s%-19s | %-15s | %-10s%s\n", BOLD, "Timestamp", "Sender", "Message",NORMAL);
+    printf("%s%-9s | %-15s | %-20s%s\n", BOLD, "Timestamp", "Sender", "Message", NORMAL);
     printf(ASCII_LINE);
     setCursorPosition(1, 8);
     printf(ASCII_LINE);
@@ -108,7 +109,7 @@ void display_recent_messages() {
         else
             printf(DARK_GRAY);
         
-        printf("%s%-19s | %-15s | %-10s", 
+        printf("%s%-9s | %-15s | %-20s", 
                 CLEAR_LINE,
                 msgs[i].timestamp, 
                 msgs[i].sender, 

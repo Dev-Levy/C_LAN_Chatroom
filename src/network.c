@@ -167,7 +167,7 @@ void send_to_all(ChatMessage msg) {
     struct tm *t = localtime(&now);
     
     // Format timestamp in userspace
-    strftime(msg.timestamp, sizeof(msg.timestamp), "%Y-%m-%d %H:%M:%S", t);
+    strftime(msg.timestamp, sizeof(msg.timestamp), "%H:%M:%S", t);
     
     // Format buffer as "timestamp|sender|message"
     char buffer[TIMESTAMP_SIZE + MAX_SENDER_LEN + MAX_MSG_LEN];
