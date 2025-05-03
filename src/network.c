@@ -78,9 +78,6 @@ int get_count(){
 int get_accepted_count(){
     return accepted_socket_count;
 }
-int get_flag(){
-    return flag;
-}
 
 void init_app(char* ip) {
     printf("Started initing network\n");
@@ -350,6 +347,7 @@ void* startAcceptingIncomingConnections(void *args) {
                 accepted_socket_count++;
                 if (init) { //status message
                     flag = 1;
+                    display_user_info(flag);
                     display_recent_messages();
                 }
                 else {
@@ -369,6 +367,7 @@ void* startAcceptingIncomingConnections(void *args) {
                 accepted_socket_count++;
                 if (init) { //status message
                     flag = 1;
+                    display_user_info(flag);
                     display_recent_messages();
                 }   
                 else {
@@ -438,6 +437,7 @@ void* receiveAndPrintIncomingData(void *args) {
                 perror("Failed to store message\n");
             } else {
                 flag = 0;
+                display_user_info(flag);
                 display_recent_messages();
             }
         }
@@ -453,6 +453,7 @@ void* receiveAndPrintIncomingData(void *args) {
             disconnected_socket_indexes[disconnected_sockets_index] = socketIndex;
             disconnected_sockets_index++;
             flag = 2;
+            display_user_info(flag);
             display_recent_messages();
             break;
         }

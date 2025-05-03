@@ -49,14 +49,10 @@ int main(int argc, char *argv[]) {
     display_recent_messages();
     read_message(message.message);
     
-    int flag;
     while (strcmp(message.message, "exit") != 0) {
         
         send_to_all(message);
         display_recent_messages();
-
-        flag = get_flag();
-        display_user_info(flag);
 
         read_message(message.message);
     }
@@ -75,7 +71,8 @@ void cli_init()
     // Header
     printf(ASCII_LINE);
     printf("### 'Simple' Chat Application\n");
-    printf("###  Connected Users: \n");
+    printf("###  Connected Users: 0\n");
+    printf("###  Last status message: \n");
     printf(ASCII_LINE);
     printf("%s%-9s | %-15s | %-20s%s\n", BOLD, "Timestamp", "Sender", "Message", NORMAL);
     printf(ASCII_LINE);
@@ -85,7 +82,7 @@ void cli_init()
 
 void read_message(char* input) {
 
-    setCursorPosition(1,7);
+    setCursorPosition(1,8);
     printf(CLEAR_LINE);
     printf("%sYou > %s", BOLD, NORMAL);
     fflush(stdout);
@@ -104,7 +101,7 @@ void display_recent_messages() {
     int total = get_count();
     int start = total > MSG_BUFFER_SIZE ? total - MSG_BUFFER_SIZE : 0;
 
-    setCursorPosition(1,9);
+    setCursorPosition(1,10);
 
     for (int i = start; i < total; i++) {
         if (strlen(msgs[i].message) == 0) continue;
@@ -121,22 +118,23 @@ void display_recent_messages() {
         printf(NORMAL);
     }
 
-    setCursorPosition(7,7);
+    setCursorPosition(7,8);
     fflush(stdout);
 }
 
 void display_user_info(int flag){
         
+    setCursorPosition(27, 4);
     switch (flag) {
         case 1:
-            printf("A User Connected!!!\n");
+            printf("%s###  Last status message: A User Connected!!!\n", CLEAR_LINE);
             break;
         case 2:
-            printf("A User Disconnected!!!\n");
+            printf("%s###  Last status message: A User Disconnected!!!\n",CLEAR_LINE);
             break;
-            default:
+        default:
             break;
-        }
+    }
 
     setCursorPosition(23, 3);
     printf("%d", get_accepted_count());
