@@ -85,6 +85,7 @@ void cli_init()
 
 void read_message(char* input) {
 
+    setCursorPosition(1,7);
     printf(CLEAR_LINE);
     printf("%sYou > %s", BOLD, NORMAL);
     fflush(stdout);
