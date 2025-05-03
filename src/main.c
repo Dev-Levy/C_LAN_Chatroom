@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
         read_message(message.message);
     }
 
-    int endline = get_count() > MSG_BUFFER_SIZE ? 29 : (get_count() + 9);
+    int endline = get_count() > MSG_BUFFER_SIZE ? 30 : (get_count() + 9);
     setCursorPosition(1, endline);
     
     shutdown_app();
