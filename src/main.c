@@ -3,13 +3,13 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <termios.h>
 #include <sys/select.h>
 
 #include "main.h"
 #include "network.h"
 
 #define MSG_BUFFER_SIZE 20
-#define MSG_SIZE 1024
 
 #define CLEAR_LINE "\33[2K\r"
 #define CLEAR_SCREEN "\33[2J"
@@ -22,6 +22,8 @@
 #define ASCII_LINE "────────────────────────────────────────────────\n"
 #define LIGHT_GRAY "\033[37m"
 #define DARK_GRAY "\033[90m"
+
+int idx = 0;
 
 int main(int argc, char *argv[]) {
     
@@ -97,7 +99,6 @@ void read_message(char* input) {
 }
 
 void display_recent_messages() {
-
     ChatMessage* msgs = network_get_messages();
 
     int total = get_count();
@@ -120,7 +121,9 @@ void display_recent_messages() {
         printf(NORMAL);
     }
 
-    setCursorPosition(7,8);
+    setCursorPosition(1,8);
+    printf(CLEAR_LINE);
+    printf("%sYou > %s", BOLD, NORMAL);
     fflush(stdout);
 }
 
@@ -140,18 +143,10 @@ void display_user_info(int flag){
 
     setCursorPosition(23, 3);
     printf("%d", get_accepted_count());
-}
-
-int input_available(){
-    struct timeval tv = {0,0};
-    fd_set fds;
-    FD_ZERO(&fds);
-    FD_SET(STDIN_FILENO, &fds);
-    return select(STDIN_FILENO + 1, &fds, NULL, NULL, &tv) == 1;
+    fflush(stdout);
 }
 
 void setCursorPosition(int x, int y)
 {
     printf("\033[%d;%dH", y, x);
 }
-
