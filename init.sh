@@ -8,6 +8,8 @@
 
 #sudo apt-get install linux-headers-$(uname -r)
 
+#sudo apt-get install libncurses5-dev libncursesw5-dev
+
 # Get the directory where the script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
