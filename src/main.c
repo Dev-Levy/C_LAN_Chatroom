@@ -121,9 +121,8 @@ void display_recent_messages() {
         printf(NORMAL);
     }
 
-    fflush(stdout);
-
     setCursorPosition(7,7);
+    fflush(stdout);
 }
 
 void display_user_info(int flag){
