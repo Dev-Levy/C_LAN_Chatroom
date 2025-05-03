@@ -78,6 +78,8 @@ void cli_init()
     printf(ASCII_LINE);
     printf("%sYou > %s\n", BOLD, NORMAL);    
     printf(ASCII_LINE);
+
+    display_user_info(0);
 }
 
 void read_message(char* input) {
